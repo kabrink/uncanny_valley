@@ -1,0 +1,737 @@
+---
+title: "Uncanny Valley"
+author: "Kimberly A. Brink"
+date: '`r format(Sys.Date(),"%B %d, %Y")`'
+output: html_document
+---
+###Variables
+Uncanny Valley 1: Do you feel the robot is creepy?
+
+Uncanny Valley 2: Does the robot make you feel weird?
+
+Uncanny Valley 3: Would you want to play with the robot?
+
+Agency 1: Can the robot do things on purpose?
+
+Agency 2: When the robot moves does it choose to move?
+
+Internal State 1: Does the robot think for itself?
+
+Internal State 2: Does the robot know the difference between good and bad?
+
+Internal State 3: Would the robot feel pain?
+
+Internal State 4: Does the robot have feelings?
+
+Internal State 5: Would the robot feel scared?
+
+Internal State 6: Would the robot feel hungry?
+
+Human-likeness 1: Is this robot like a human?
+
+Exploratory 1: Does the robot know it's a robot?
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.path='Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r install_libraries}
+#library(extrafont)
+library(lubridate)
+library(Hmisc)
+#library(knitr)
+options("scipen"=100, "digits"= 4)
+
+```
+
+```{r standard_error}
+s.error <- function(x) sd(x,na.rm=TRUE)/sqrt(length(x))
+```
+
+```{r load_file}
+#filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - UV - First Robot.sav"
+filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - Data.sav"
+UV <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=FALSE)
+UV <- UV[which((UV$Order=='1')&(UV$Condition==1)|(UV$Order=='2')&(UV$Condition==2)|(UV$Order=='3')&(UV$Condition==1)|(UV$Order=='4')&(UV$Condition==2)),]
+
+# version = '2.5'
+# request = 'getLegacyResponseUV'
+# username = 'kabrink%23umich'
+# token = 'EV1NOq9slwpxgpJuZuOoUl8c9hjmqUGGNPDEz95A'
+# format = 'CSV'
+# surveyID = 'SV_8kWd7cXI2WEzUVf'
+# exportTags = '1'
+# UnansweredRecode = '-99'
+# 
+# getSurveyResults <- function (version, request, username, token, format, surveyid)
+# {
+#     url = paste("https://umich.qualtrics.com//WRAPI/ControlPanel/api.php?API_SELECT=ControlPanel", 
+#                 '&Version=', version,
+#                 '&Request=', request,
+#                 '&User=', username,
+#                 '&Token=', token,
+#                 '&Format=', format,
+#                 "&SurveyID=", surveyid,
+#                 "&ExportTags=1",
+#                 "&UnansweredRecode=-99",sep='')
+# 
+#     t = read.csv(url)
+#     for (i in 1:10){ names(t)[i] <- as.character(t[1,i]) }
+#     t<-t[-1,]
+# }
+# 
+# qualtrics.UV <- getSurveyResults(version, request, username, token, format, surveyid)
+```
+
+```{r calculate_variables}
+UV$Age = (year(as.period(new_interval(UV$DOB, UV$DOT)))*12) + month(as.period(new_interval(UV$DOB, UV$DOT))) + (day(as.period(new_interval(UV$DOB, UV$DOT)))/30)
+UV$UV_index = (UV$UV1 + UV$UV2) / 2
+UV$CondByAge = UV$Condition * UV$Age
+UV$AgeYears = UV$Age/12
+UV$AgeGroup = factor(ifelse(UV$Age<=72, "1", ifelse(UV$Age<=108, "2", ifelse(UV$Age<=144, "3", "4"))))
+UV$Robot = ifelse(UV$Condition==1,"Kaspar Back","Kaspar Front")
+```
+
+###Demographics.
+There are `r length(UV$SubID)` participants.
+
+```{r}
+#UV = UV[ which( UV$Condition!=3 ), ]
+UV = UV[ which( UV$Age <= 216 & UV$Age >= 30 ), ]
+UV[ UV == 999 ] <- NA
+
+isGirl <- UV$Sex == "1"
+
+attach(UV)
+```
+After reducing participants outside of the age range, there are `r length(UV$SubID)` participants.
+
+The average age of the sample is `r round(mean(Age)/12, digits = 2)` years.
+
+The minimum age of the sample is `r round(min(Age)/12, digits = 2)` years.
+
+The maximum age of the sample is `r round(max(Age)/12, digits = 2)` years
+
+There are `r sum(isGirl)` (`r (sum(isGirl)/length(UV$SubID))*100`%) females in the sample.
+
+The most recent date of test was `r max(DOT)`.
+
+The first date of test was `r min(DOT)`.
+
+```{r plot_settings}
+responseAxis <- 1.3
+responseAxis2 <- 1.9
+ageAxis <- 2
+humanColor = 'blue'
+machineColor = 'red'
+plotFill = 'white'
+titleSize = 3
+titleSizeSmall = 2
+titleSizeExtraSmall = 1.5
+font = "Georgia"
+lineWidth = 5
+```
+
+```{r DOT_hist, fig.width=8, fig.height=8}
+hist(DOT, breaks = "months", freq = TRUE)
+```
+
+#Bar Charts and ANOVAs
+
+```{r barByAge_function}
+barByAge <-function(v,data,title){
+means <- aggregate(v~Robot+AgeGroup,data,mean)
+se <- aggregate(v~Robot+AgeGroup,data,s.error)
+
+meansM<-matrix(means$v,ncol=4,byrow=FALSE)
+se<-matrix(se$v,ncol=4,byrow=FALSE)
+colnames(meansM) <- c('<6','6-9','9-12','>12')
+rownames(meansM) <- levels(factor(means$Robot))
+#means <- as.table(means)
+meansR <- round(meansM,2)
+g.range = range(0,ceiling(max(means$v)+1))
+
+plot.new()
+barCenters <- barplot(meansM, col=c("darkblue","red"), legend = rownames(meansM), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title)
+axis(2, at = c(0:4), labels = c('','No', 'A little bit', 'A medium amount', 'A lot'))
+arrows(barCenters, meansM-se, barCenters, meansM+se, lwd = 2, length=0.05, angle=90, code=3)
+text(barCenters,meansM+1.5*se,label=meansR)
+}
+```
+
+```{r barByAge_UV1}
+barByAge(UV$UV1,UV, "Do you feel the robot is creepy?")
+barByAge(UV$UV2,UV, "Does the robot make you feel weird?")
+barByAge(UV$UV3,UV, "Would you want to play with the robot?")
+barByAge(UV$UV_index,UV,"UV Composite")
+barByAge(UV$IS1,UV,"Does the robot think for itself?")
+barByAge(UV$IS2,UV,"Does the robot know the difference between good and bad?")
+barByAge(UV$IS3,UV,"Would the robot feel pain?")
+barByAge(UV$IS4,UV,"Does the robot have feelings?")
+barByAge(UV$IS5,UV,"Would the robot feel scared?")
+barByAge(UV$IS6,UV,"Would the robot feel hungry?")
+barByAge(UV$A1,UV,"Can the robot do things on purpose?")
+barByAge(UV$A2,UV,"When the robot moves does it choose to move?")
+barByAge(UV$HL1,UV,"Is this robot like a human?")
+barByAge(UV$E1,UV,"Does the robot know it's a robot?")
+```
+
+#Scatter plots and fit lines 
+Thoughts (IS1), Pain (IS3), Emotions (IS4), Hunger (IS6), Fear (IS5), Choice (A2) for Kaspar Back and Front by Age
+
+```{r scatter_plot_6, fig.width=20, fig.height=19}
+#```{r scatter_plot_6, fig.width=20, fig.height=28}
+plot.new()
+
+#Scatter plots and fit lines for Thoughts (IS1) by Age
+
+par(mar=c(4.5,5,2,2)+0.1, fig=c(0,0.5,0.5,1), new=TRUE)
+#par(mar=c(4.5,5,2,2)+0.1, fig=c(0,0.5,0.7,1), new=TRUE)
+plot(AgeYears, jitter(IS1), main = "Does the robot think for itself?", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', cex.main = titleSize, cex.axis = ageAxis, cex.lab = ageAxis, col = humanColor, cex = responseAxis2)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(AgeYears, jitter(IS1), col = humanColor, cex = ageAxis)
+axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis2)
+abline(lm(IS1~AgeYears), col = humanColor, lwd = lineWidth)
+fit <- lm(IS1~AgeYears)
+#fit <- lm(IS1~Age+I(Age^2), UV)
+#fit2line <- predict(fit, UV.frame(dist = -10:160))
+#lines(-10:160, fit2line, col = humanColor)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(((2.5-a)/b)+2.2, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = ageAxis)
+
+#Scatter plots and fit lines for Pain (IS3) by Age
+
+# par(mar=c(4.5,5,2,2)+0.1, fig=c(0.5,1,0.7,1), new=TRUE)
+# plot(Age, jitter(IS3), main = "Would the robot feel pain?", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', cex.main = titleSize, cex.axis = ageAxis, cex.lab = ageAxis, col = humanColor, cex = responseAxis2)
+# u <- par("usr") 
+# rect(u[1], u[3], u[2], u[4], col = plotFill)
+# points(Age, jitter(IS3), col = humanColor, cex = ageAxis)
+# axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis2)
+# abline(lm(IS3~Age), col = humanColor, lwd = lineWidth)
+# fit <- lm(IS3~Age)
+# a <- summary(fit)$coefficient['(Intercept)','Estimate']
+# b <- summary(fit)$coefficient['Age','Estimate']
+# r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+# f <- summary(fit)$fstatistic
+# p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+# p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+# text(((2.5-a)/b)+40, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = ageAxis)
+
+
+#Scatter plots and fit lines for Emotions (IS4) by Age
+
+par(mar=c(4.5,5,2,2)+0.1, fig=c(0.5,1,0.5,1), new=TRUE)
+#par(mar=c(4.5,5,2,2)+0.1, fig=c(0.5,1,0.7,1), new=TRUE)
+#par(mar=c(4.5,5,2,2)+0.1, fig=c(0,0.5,0.4,0.69), new=TRUE)
+plot(AgeYears, jitter(IS4), main = "Does the robot have feelings?", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', cex.main = titleSize, cex.axis = ageAxis, cex.lab = ageAxis, col = humanColor, cex = responseAxis2)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(AgeYears, jitter(IS4), col = humanColor, cex = responseAxis2)
+axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis2)
+abline(lm(IS4~AgeYears), col = humanColor, lwd = lineWidth)
+fit <- lm(IS4~AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(((2.5-a)/b)+2.8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = ageAxis)
+
+
+#Scatter plots and fit lines for Hunger (IS6) by Age
+
+par(mar=c(4.5,5,2,2)+0.1, fig=c(0,0.5,0,0.5), new=TRUE)
+#par(mar=c(4.5,5,2,2)+0.1, fig=c(0,0.5,0.4,0.69), new=TRUE)
+#par(mar=c(4.5,5,2,2)+0.1, fig=c(0.5,1,0.4,0.69), new=TRUE)
+plot(AgeYears, jitter(IS6), main = "Would the robot feel hungry?", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', cex.main = titleSize, cex.axis = ageAxis, cex.lab = ageAxis, col = humanColor, cex = responseAxis2)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(AgeYears, jitter(IS6), col = humanColor, cex = responseAxis2)
+axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis2)
+abline(lm(IS6~AgeYears), col = humanColor, lwd = lineWidth)
+fit <- lm(IS6~AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(((2.5-a)/b)+2.7, 2.5,bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = ageAxis)
+
+#Scatter plots and fit lines for Fear (IS5) by Age
+
+par(mar=c(4.5,5,2,2)+0.1, fig=c(0.5,1,0,0.5), new=TRUE)
+#par(mar=c(4.5,5,2,2)+0.1, fig=c(0.5,1,0.4,0.69), new=TRUE)
+#par(mar=c(4.5,5,2,2)+0.1, fig=c(0,0.5,0.1,0.39), new=TRUE)
+plot(AgeYears, jitter(IS5), main = "Would the robot feel scared?", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', cex.main = titleSize, cex.axis = ageAxis, cex.lab = ageAxis, col = humanColor, cex = responseAxis2)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(AgeYears, jitter(IS5), col = humanColor, cex = responseAxis2)
+axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis2)
+abline(lm(IS5~AgeYears), col = humanColor, lwd = lineWidth)
+fit <- lm(IS5~AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(((2.5-a)/b)+3.2, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = ageAxis)
+
+#Scatter plots and fit lines for Choice (A2) by Age
+
+# par(mar=c(4.5,5,2,2)+0.1, fig=c(0.5,1,0.1,0.39), new=TRUE)
+# plot(Age, jitter(A2), main = "Does the robot choose to move?", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', cex.main = titleSize, cex.axis = ageAxis, cex.lab = ageAxis, col = humanColor, cex = responseAxis)
+# u <- par("usr") 
+# rect(u[1], u[3], u[2], u[4], col = plotFill)
+# points(Age, jitter(A2), col = humanColor, cex = responseAxis)
+# axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+# abline(lm(A2~Age), col = humanColor, lwd = lineWidth)
+# fit <- lm(A2~Age)
+# a <- summary(fit)$coefficient['(Intercept)','Estimate']
+# b <- summary(fit)$coefficient['Age','Estimate']
+# r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+# f <- summary(fit)$fstatistic
+# p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+# p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+# text(((2.5-a)/b)+40, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = ageAxis)
+```
+
+
+
+#Scatterplot for Exploratory Question (E1)
+```{r scatter_E1}
+
+plot.new()
+par(mar=c(5,5,5,5)+0.1)
+plot(AgeYears, jitter(E1), main = "Does the robot know it's a robot?", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', cex.main = titleSize, cex.axis = ageAxis, cex.lab = ageAxis, col = humanColor, cex = responseAxis)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(AgeYears, jitter(E1), col = humanColor, cex = responseAxis)
+axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+abline(lm(E1~AgeYears), col = humanColor, lwd = lineWidth)
+fit <- lm(E1~AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(((2.5-a)/b)+3.5, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = ageAxis)
+```
+
+#Scatterplot for Morality (IS2)
+```{r scatter_Morality}
+KasparFront = UV[ which( UV$Condition==2), ]
+KasparBack = UV[ which( UV$Condition==1) , ]
+
+plot.new()
+par(mar=c(5,5,5,5)+0.1)
+plot(KasparFront$AgeYears, jitter(KasparFront$IS2), main = "Does this robot know the\n difference between good and bad?", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab= ageAxis)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(KasparFront$AgeYears, jitter(KasparFront$IS2), col = humanColor)
+axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+abline(lm(KasparFront$IS2~KasparFront$AgeYears), col = humanColor, lwd = lineWidth)
+fit <- lm(KasparFront$IS2~KasparFront$AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['KasparFront$AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(10, 2.4, bquote(paste( R^2 == .(r2), ', p '== .(p))), col = humanColor, cex = responseAxis)
+
+points(KasparBack$AgeYears, jitter(KasparBack$IS2), col = machineColor)
+abline(lm(KasparBack$IS2~KasparBack$AgeYears), col = machineColor, lwd = lineWidth)
+fit <- lm(KasparBack$IS2~KasparBack$AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['KasparBack$AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(((2.5-a)/b)+1.7, 2.6, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = machineColor, cex = responseAxis)
+
+legend( 'topright',c( "Machine-like", "Human-like" ), col = c( "Red","Blue" ), lwd = lineWidth, bg = 'white', inset = .025) 
+
+```
+
+##Test of interaction between Morality, Age, and Robot appearance
+
+```{r ixn_Morality}
+mIxnTest <- lm(IS2 ~ AgeYears*Condition, UV=UV)
+
+varTest = 'AgeYears:Condition'
+ixnBeta = summary(mIxnTest)$coefficient[varTest,'Estimate']
+ixnDF = length(unique(Condition))-1
+ixnT <- summary(mIxnTest)$coefficient[varTest,'t value']
+ixnP <- round(summary(mIxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+ixnP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,ixnP)))
+
+varTest = 'AgeYears'
+ageBeta = summary(mIxnTest)$coefficient[varTest,'Estimate']
+ageDF = length(unique(Condition))-1
+ageT <- summary(mIxnTest)$coefficient[varTest,'t value']
+ageP <- round(summary(mIxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+ageP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,ageP)))
+
+varTest = 'Condition'
+conBeta = summary(mIxnTest)$coefficient[varTest,'Estimate']
+conDF = length(unique(Condition))-1
+conT <- summary(mIxnTest)$coefficient[varTest,'t value']
+conP <- round(summary(mIxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+conP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+```
+There was a significant interaction between child's age and robot appearance on children's report of moral behavior, $\beta$ = `r ixnBeta`, *t*(`r ixnDF`) = `r ixnT`, *p* < `r ixnP`.
+
+There was a significant main effect of child's age on children's report of moral behavior, $\beta$ = `r ageBeta`, *t*(`r ageDF`) = `r ageT`, *p* < `r ageP`.
+
+There was a significant main effect of robot appearance on children's report of moral behavior, $\beta$ = `r conBeta`, *t*(`r conDF`) = `r conT`, *p* < `r conP`.
+
+#Comparing Uncanny Valley measures for Kaspar Back and Kaspar Front
+##T-Test for each Uncanny measure for all participants
+```{r ttest_UVAll}
+ageCutoff = 144 #months
+KasparFront = UV[ which( UV$Condition==2), ]
+KasparBack = UV[ which( UV$Condition==1) , ]
+
+ttest_UV1 = t.test(KasparFront$UV1,KasparBack$UV1,paired=FALSE)
+ttest_UV2 = t.test(KasparFront$UV2,KasparBack$UV2,paired=FALSE)
+ttest_UV3 = t.test(KasparFront$UV3,KasparBack$UV3,paired=FALSE)
+ttest_UVindex = t.test(KasparFront$UV_index,KasparBack$UV_index,paired=FALSE)
+```
+There is not a significant difference in children's reports of creepiness for the two different robots, *t*(`r ttest_UV1$parameter`) = `r ttest_UV1$statistic`, *p* = `r ttest_UV1$p.value`.
+
+There is not a significant difference in children's reports of feelings of weirdness for the two different robots, *t*(`r ttest_UV2$parameter`) = `r ttest_UV2$statistic`, *p* = `r ttest_UV2$p.value`.
+
+There is not a significant difference in children's reports of wanting to play with the two different robots, *t*(`r ttest_UV3$parameter`) = `r ttest_UV3$statistic`, *p* = `r ttest_UV3$p.value`.
+
+There is not a significant difference in the Uncanny Valley composite for the two different robots, *t*(`r ttest_UVindex$parameter`) = `r ttest_UVindex$statistic`, *p* = `r ttest_UVindex$p.value`.
+
+##T-Test for each Uncanny measure for all participants older than `r ageCutoff/12` years
+```{r ttest_UV126}
+KasparFrontOld = KasparFront[ which( KasparFront$Age>=ageCutoff), ]
+KasparBackOld = KasparBack[ which( KasparBack$Age>=ageCutoff) , ]
+
+KasparFrontOld = KasparFrontOld[ which( KasparFrontOld$UV2!='NA'), ]
+KasparBackOld = KasparBackOld[ which( KasparBackOld$UV2!='NA') , ]
+
+ttest_UV1 = t.test(KasparFrontOld$UV1,KasparBackOld$UV1,paired=FALSE)
+ttest_UV2 = t.test(KasparFrontOld$UV2,KasparBackOld$UV2,paired=FALSE)
+ttest_UV3 = t.test(KasparFrontOld$UV3,KasparBackOld$UV3,paired=FALSE)
+ttest_UVindex = t.test(KasparFrontOld$UV_index,KasparBackOld$UV_index,paired=FALSE)
+```
+There is not a significant difference in children's reports of creepiness for the two different robots, *t*(`r ttest_UV1$parameter`) = `r ttest_UV1$statistic`, *p* = `r ttest_UV1$p.value`.
+
+There is not a significant difference in children's reports of feelings of weirdness for the two different robots, *t*(`r ttest_UV2$parameter`) = `r ttest_UV2$statistic`, *p* = `r ttest_UV2$p.value`.
+
+There is not a significant difference in children's reports of wanting to play with the two different robots, *t*(`r ttest_UV3$parameter`) = `r ttest_UV3$statistic`, *p* = `r ttest_UV3$p.value`.
+
+There is not a significant difference in the Uncanny Valley composite for the two different robots, *t*(`r ttest_UVindex$parameter`) = `r ttest_UVindex$statistic`, *p* = `r ttest_UVindex$p.value`.
+
+##Barplot for Uncanny Valley (UV1)
+```{r bar_UV1, fig.height=7, fig.width=5.5}
+KasparFrontOld = KasparFrontOld[ which( KasparFrontOld$UV1!='NA'), ]
+KasparBackOld = KasparBackOld[ which( KasparBackOld$UV1!='NA') , ]
+
+KFront = mean(KasparFrontOld$UV1)
+KBack = mean(KasparBackOld$UV1)
+KFront.se = sd(KasparFrontOld$UV1)/sqrt(length(KasparFrontOld$UV1))
+KBack.se = sd(KasparBackOld$UV1)/sqrt(length(KasparBackOld$UV1))
+
+names <- c(paste("Machine-like (N = ", length(KasparBackOld$UV1),")",sep=""), paste("Human-like (N = ", length(KasparFrontOld$UV1),")",sep=""))
+means <- c(KBack, KFront)
+se <- c(KBack.se,KFront.se)
+
+plot.new()
+barCenters <- barplot(means, ylim=c(0,ceiling(max(means+se))),names.arg=names,ylab="Response",las=1, lwd = 4, col=c("red","blue"),main=paste("Do you think the robot is creepy? \n(Age >", ageCutoff/12, "years)",""),yaxt = 'n',cex.main = titleSizeExtraSmall)
+axis(2, at = c(0:4), labels = c('','No', 'A little bit', 'A medium amount', 'A lot'))
+arrows(barCenters, means-se, barCenters, means+se,lwd=lineWidth,angle=90,code=3)
+```
+
+##Test of difference in Uncanny Valley (UV1) by Robot appearance
+There is not a significant difference in children's reports of creepiness for the two different robots, *t*(`r ttest_UV1$parameter`) = `r ttest_UV1$statistic`, *p* = `r ttest_UV1$p.value`.
+
+##Scatter plot for Uncanny Valley (UV1)
+```{r scatter_UV1}
+KasparFront = UV[ which( UV$Condition==2), ]
+KasparBack = UV[ which( UV$Condition==1) , ]
+
+plot.new()
+par(mar=c(5,5,5,5)+0.1)
+plot(KasparFront$AgeYears, jitter(KasparFront$UV1), main = "Do you think this robot is creepy?", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = ageAxis)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(KasparFront$AgeYears, jitter(KasparFront$UV1), col = humanColor)
+axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+abline(lm(KasparFront$UV1~KasparFront$AgeYears), col = humanColor, lwd = lineWidth)
+fit <- lm(KasparFront$UV1~KasparFront$AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['KasparFront$AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(((2.5-a)/b)-8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = responseAxis)
+
+points(KasparBack$AgeYears, jitter(KasparBack$UV1), col = machineColor)
+abline(lm(KasparBack$UV1~KasparBack$AgeYears), col = machineColor, lwd = lineWidth)
+fit <- lm(KasparBack$UV1~KasparBack$AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['KasparBack$AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(((2.5-a)/b)+8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = machineColor, cex = responseAxis)
+
+legend('topright',c("Machine-like", "Human-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+```
+
+##Test of interaction between Uncanny Valley (UV1), Age, and Robot appearance
+```{r ixn_UV1}
+uv1IxnTest <- lm(UV1 ~ AgeYears*Condition, UV=UV)
+#summary(uvIxnTest)
+
+varTest = 'AgeYears:Condition'
+ixnBeta = summary(uv1IxnTest)$coefficient[varTest,'Estimate']
+ixnDF = length(unique(Condition))-1
+ixnT <- summary(uv1IxnTest)$coefficient[varTest,'t value']
+ixnP <- round(summary(uv1IxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+ixnP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,ixnP)))
+
+varTest = 'AgeYears'
+ageBeta = summary(uv1IxnTest)$coefficient[varTest,'Estimate']
+ageDF = length(unique(Condition))-1
+ageT <- summary(uv1IxnTest)$coefficient[varTest,'t value']
+ageP <- round(summary(uv1IxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+ageP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,ageP)))
+
+varTest = 'Condition'
+conBeta = summary(uv1IxnTest)$coefficient[varTest,'Estimate']
+conDF = length(unique(Condition))-1
+conT <- summary(uv1IxnTest)$coefficient[varTest,'t value']
+conP <- round(summary(uv1IxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+conP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,conP)))
+```
+There was not a significant interaction between child's age and robot appearance on children's reports of creepiness, $\beta$ = `r ixnBeta`, *t*(`r ixnDF`) = `r ixnT`, *p* = `r ixnP`.
+
+There was not a significant main effect of child's age on children's reports of creepiness, $\beta$ = `r ageBeta`, *t*(`r ageDF`) = `r ageT`, *p* = `r ageP`.
+
+There was not a significant main effect of robot appearance on children's reports of creepiness, $\beta$ = `r conBeta`, *t*(`r conDF`) = `r conT`, *p* = `r conP`.
+
+##Barplot for Uncanny Valley (UV2)
+```{r bar_UV2, fig.width=5.5, fig.height=7}
+KFront = mean(KasparFrontOld$UV2)
+KBack = mean(KasparBackOld$UV2)
+KFront.se = sd(KasparFrontOld$UV2)/sqrt(length(KasparFrontOld$UV2))
+KBack.se = sd(KasparBackOld$UV2)/sqrt(length(KasparBackOld$UV2))
+
+names <- c(paste("Machine-like (N = ", length(KasparBackOld$UV2),")",sep=""), paste("Human-like (N = ", length(KasparFrontOld$UV2),")",sep=""))
+means <- c(KBack, KFront)
+se <- c(KBack.se,KFront.se)
+
+plot.new()
+barCenters <- barplot(means, ylim=c(0,ceiling(max(means+se))),names.arg=names,ylab="Response",las=1, lwd = 4, col=c("red","blue"),main=paste("Does this robot make you feel weird? \n(Age >", ageCutoff/12, "years)",""),yaxt = 'n',cex.main = titleSizeExtraSmall)
+axis(2, at = c(0:4), labels = c('','No', 'A little bit', 'A medium amount', 'A lot'))
+arrows(barCenters, means-se, barCenters, means+se,lwd=2,angle=90,code=3)
+```
+
+##Test of difference in Uncanny Valley (UV2) by Robot appearance
+There is not a significant difference in children's reports of feelings of weirdness for the two different robots, *t*(`r ttest_UV2$parameter`) = `r ttest_UV2$statistic`, *p* = `r ttest_UV2$p.value`.
+
+##Scatter plot for Uncanny Valley (UV2)
+```{r scatter_UV2}
+KasparFront = UV[ which( UV$Condition==2), ]
+KasparBack = UV[ which( UV$Condition==1) , ]
+
+plot.new()
+par(mar=c(5,5,5,5)+0.1)
+plot(KasparFront$AgeYears, jitter(KasparFront$UV2), main = "Does this robot make you feel weird?", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = ageAxis)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(KasparFront$AgeYears, jitter(KasparFront$UV2), col = humanColor)
+axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+abline(lm(KasparFront$UV2~KasparFront$AgeYears), col = humanColor, lwd = lineWidth)
+fit <- lm(KasparFront$UV2~KasparFront$AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['KasparFront$AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(10.3, 2.5, bquote(paste( R^2 == .(r2), ', p '== .(p))), col = humanColor, cex = responseAxis)
+
+points(KasparBack$AgeYears, jitter(KasparBack$UV2), col = machineColor)
+abline(lm(KasparBack$UV2~KasparBack$AgeYears), col = machineColor, lwd = lineWidth)
+fit <- lm(KasparBack$UV2~KasparBack$AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['KasparBack$AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(5.7, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = machineColor, cex = responseAxis)
+
+legend('topright',c("Machine-like", "Human-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+```
+
+##Test of interaction between Uncanny Valley (UV2), Age, and Robot appearance
+```{r ixn_UV2}
+uvIxnTest <- lm(UV2 ~ AgeYears*Condition, UV=UV)
+#summary(uvIxnTest)
+
+varTest = 'AgeYears:Condition'
+ixnBeta = summary(uvIxnTest)$coefficient[varTest,'Estimate']
+ixnDF = length(unique(Condition))-1
+ixnT <- summary(uvIxnTest)$coefficient[varTest,'t value']
+ixnP <- round(summary(uvIxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+ixnP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,ixnP)))
+
+varTest = 'AgeYears'
+ageBeta = summary(uvIxnTest)$coefficient[varTest,'Estimate']
+ageDF = length(unique(Condition))-1
+ageT <- summary(uvIxnTest)$coefficient[varTest,'t value']
+ageP <- round(summary(uvIxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+ageP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,ageP)))
+
+varTest = 'Condition'
+conBeta = summary(uvIxnTest)$coefficient[varTest,'Estimate']
+conDF = length(unique(Condition))-1
+conT <- summary(uvIxnTest)$coefficient[varTest,'t value']
+conP <- round(summary(uvIxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+conP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,conP)))
+```
+
+There was not a significant interaction between child's age and robot appearance on children's reports of feelings of weirdness, $\beta$ = `r ixnBeta`, *t*(`r ixnDF`) = `r ixnT`, *p* = `r ixnP`.
+
+There was not a significant main effect of child's age on children's reports of feelings of weirdness, $\beta$ = `r ageBeta`, *t*(`r ageDF`) = `r ageT`, *p* = `r ageP`.
+
+There was not a significant main effect of robot appearance on children's reports of feelings of weirdness, $\beta$ = `r conBeta`, *t*(`r conDF`) = `r conT`, *p* = `r conP`.
+
+##Barplot for Uncanny Valley (UV Index)
+```{r bar_UVindex, fig.height=7, fig.width=5.5}
+KasparFrontOld = KasparFrontOld[ which( KasparFrontOld$UV_index!='NA'), ]
+KasparBackOld = KasparBackOld[ which( KasparBackOld$UV_index!='NA') , ]
+
+KFront = mean(KasparFrontOld$UV_index)
+KBack = mean(KasparBackOld$UV_index)
+KFront.se = sd(KasparFrontOld$UV_index)/sqrt(length(KasparFrontOld$UV_index))
+KBack.se = sd(KasparBackOld$UV_index)/sqrt(length(KasparBackOld$UV_index))
+
+names <- c(paste("Machine-like (N = ", length(KasparBackOld$UV_index),")",sep=""), paste("Human-like (N = ", length(KasparFrontOld$UV_index),")",sep=""))
+means <- c(KBack, KFront)
+se <- c(KBack.se,KFront.se)
+
+plot.new()
+barCenters <- barplot(means, ylim=c(0,ceiling(max(means+se))),names.arg=names,ylab="Response",las=1, lwd = 4, col=c("red","blue"),main=paste("UV Index \n(Age >", ageCutoff/12, "years)",""),yaxt = 'n',cex.main = titleSizeExtraSmall)
+axis(2, at = c(0:4), labels = c('','No', 'A little bit', 'A medium amount', 'A lot'))
+arrows(barCenters, means-se, barCenters, means+se,lwd=lineWidth,angle=90,code=3)
+```
+
+##Test of difference in Uncanny Valley (UV Index) by Robot appearance
+There is not a significant difference in children's reports of creepiness for the two different robots, *t*(`r ttest_UV1$parameter`) = `r ttest_UV1$statistic`, *p* = `r ttest_UV1$p.value`.
+
+##Scatter plot for Uncanny Valley (UV Index)
+```{r scatter_UVindex}
+KasparFront = UV[ which( UV$Condition==2), ]
+KasparBack = UV[ which( UV$Condition==1) , ]
+
+plot.new()
+par(mar=c(5,5,5,5)+0.1)
+plot(KasparFront$AgeYears, jitter(KasparFront$UV_index), main = "UV Index", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = ageAxis)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(KasparFront$AgeYears, jitter(KasparFront$UV_index), col = humanColor)
+axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+abline(lm(KasparFront$UV_index~KasparFront$AgeYears), col = humanColor, lwd = lineWidth)
+fit <- lm(KasparFront$UV_index~KasparFront$AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['KasparFront$AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(((2.5-a)/b)-8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = responseAxis)
+
+points(KasparBack$AgeYears, jitter(KasparBack$UV_index), col = machineColor)
+abline(lm(KasparBack$UV_index~KasparBack$AgeYears), col = machineColor, lwd = lineWidth)
+fit <- lm(KasparBack$UV_index~KasparBack$AgeYears)
+a <- summary(fit)$coefficient['(Intercept)','Estimate']
+b <- summary(fit)$coefficient['KasparBack$AgeYears','Estimate']
+r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+f <- summary(fit)$fstatistic
+p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+text(((2.5-a)/b)+8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = machineColor, cex = responseAxis)
+
+legend('topright',c("Machine-like", "Human-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+```
+
+##Test of interaction between Uncanny Valley (UV Index), Age, and Robot appearance
+```{r ixn_UVindex}
+uv1IxnTest <- lm(UV_index ~ AgeYears*Condition, UV=UV)
+#summary(uvIxnTest)
+
+varTest = 'AgeYears:Condition'
+ixnBeta = summary(uv1IxnTest)$coefficient[varTest,'Estimate']
+ixnDF = length(unique(Condition))-1
+ixnT <- summary(uv1IxnTest)$coefficient[varTest,'t value']
+ixnP <- round(summary(uv1IxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+ixnP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,ixnP)))
+
+varTest = 'AgeYears'
+ageBeta = summary(uv1IxnTest)$coefficient[varTest,'Estimate']
+ageDF = length(unique(Condition))-1
+ageT <- summary(uv1IxnTest)$coefficient[varTest,'t value']
+ageP <- round(summary(uv1IxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+ageP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,ageP)))
+
+varTest = 'Condition'
+conBeta = summary(uv1IxnTest)$coefficient[varTest,'Estimate']
+conDF = length(unique(Condition))-1
+conT <- summary(uv1IxnTest)$coefficient[varTest,'t value']
+conP <- round(summary(uv1IxnTest)$coefficient[varTest,'Pr(>|t|)'], digits = 3)
+conP <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,conP)))
+```
+There was not a significant interaction between child's age and robot appearance on children's reports of creepiness, $\beta$ = `r ixnBeta`, *t*(`r ixnDF`) = `r ixnT`, *p* = `r ixnP`.
+
+There was not a significant main effect of child's age on children's reports of creepiness, $\beta$ = `r ageBeta`, *t*(`r ageDF`) = `r ageT`, *p* = `r ageP`.
+
+There was not a significant main effect of robot appearance on children's reports of creepiness, $\beta$ = `r conBeta`, *t*(`r conDF`) = `r conT`, *p* = `r conP`.
+
+
+#Barplot for human likeness: Is the robot like a human?
+```{r bar_HL1, fig.height=7, fig.width=5.5}
+KasparFront = UV[ which( UV$Condition==2), ]
+KasparBack = UV[ which( UV$Condition==1) , ]
+
+KFront = mean(KasparFront$HL1)
+KBack = mean(KasparBack$HL1,na.rm=TRUE)
+KFront.se = sd(KasparFront$HL1)/sqrt(length(KasparFront$HL1))
+KBack.se = sd(KasparBack$HL1,na.rm=TRUE)/sqrt(length(KasparBack$HL1))
+
+names <- c(paste("Machine-like (N = ", length(KasparBack$HL1),")",sep=""), paste("Human-like (N = ", length(KasparFront$HL1),")",sep=""))
+means <- c(KBack, KFront)
+se <- c(KBack.se,KFront.se)
+
+plot.new()
+barCenters <- barplot(means, ylim=c(0,ceiling(max(means+se))),names.arg=names,ylab="Response",las=1, lwd = 4, col=c("red","blue"),main="Child report of human-likeness:\nIs this robot like a human?",yaxt = 'n',cex.main = titleSizeExtraSmall)
+axis(2, at = c(0:4), labels = c('','No', 'A little bit', 'A medium amount', 'A lot'))
+arrows(barCenters, means-se, barCenters, means+se,lwd=lineWidth,angle=90,code=3)
+```
+
+##T-Test for Human-Likeness for all participants
+```{r ttest_HL1}
+ttest_HL1 = t.test(KasparFront$HL1,KasparBack$HL1,paired=FALSE)
+#`r if(show.text){"la la la"}`
+```
+
+There is a significant difference in children's reports of human-likeness for the two different robots, *t*(`r ttest_HL1$parameter`) = `r ttest_HL1$statistic`, *p* = `r ttest_HL1$p.value`.

@@ -52,34 +52,6 @@ s.error <- function(x) sd(x,na.rm=TRUE)/sqrt(length(x))
 filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - Data.sav"
 UV <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=FALSE)
 UV <- UV[which((UV$Order=='1')&(UV$Condition==1)|(UV$Order=='2')&(UV$Condition==2)|(UV$Order=='3')&(UV$Condition==1)|(UV$Order=='4')&(UV$Condition==2)),]
-
-# version = '2.5'
-# request = 'getLegacyResponseUV'
-# username = 'kabrink%23umich'
-# token = 'EV1NOq9slwpxgpJuZuOoUl8c9hjmqUGGNPDEz95A'
-# format = 'CSV'
-# surveyID = 'SV_8kWd7cXI2WEzUVf'
-# exportTags = '1'
-# UnansweredRecode = '-99'
-# 
-# getSurveyResults <- function (version, request, username, token, format, surveyid)
-# {
-#     url = paste("https://umich.qualtrics.com//WRAPI/ControlPanel/api.php?API_SELECT=ControlPanel", 
-#                 '&Version=', version,
-#                 '&Request=', request,
-#                 '&User=', username,
-#                 '&Token=', token,
-#                 '&Format=', format,
-#                 "&SurveyID=", surveyid,
-#                 "&ExportTags=1",
-#                 "&UnansweredRecode=-99",sep='')
-# 
-#     t = read.csv(url)
-#     for (i in 1:10){ names(t)[i] <- as.character(t[1,i]) }
-#     t<-t[-1,]
-# }
-# 
-# qualtrics.UV <- getSurveyResults(version, request, username, token, format, surveyid)
 ```
 
 ```{r calculate_variables}

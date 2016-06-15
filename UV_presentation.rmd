@@ -1,0 +1,129 @@
+---
+title: "Uncanny Valley - Grant Presentation"
+author: "Kimberly A. Brink"
+date: "June 15, 2016"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.path='Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r install_libraries}
+#library(extrafont)
+library(lubridate)
+library(Hmisc)
+library(plyr)
+library(psy)
+library(FAiR)
+#library(knitr)
+options("scipen"=100, "digits"= 4)
+
+```
+
+```{r standard_error}
+s.error <- function(x) sd(x,na.rm=TRUE)/sqrt(length(x))
+```
+
+```{r safe_ifelse}
+safe.ifelse <- function(cond, yes, no) {
+      class.y <- class(yes)
+      if ("factor" %in% class.y) {  # Note the small condition change here
+        levels.y = levels(yes)
+      }
+      X <- ifelse(cond,yes,no)
+      if ("factor" %in% class.y) {  # Note the small condition change here
+        X = as.factor(X)
+        levels(X) = levels.y
+      } else {
+        class(X) <- class.y
+      }
+      return(X)
+}
+```
+
+```{r load_file}
+filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - Data.sav"
+UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F)
+```
+
+```{r formatting}
+UV.original$Age = NULL
+UV.original$AgeGroup = NULL
+UV.original$AgeYear = NULL
+UV.original$COMME0 = NULL
+names(UV.original)[names(UV.original) == 'VAR00001'] <- 'Comments'
+names(UV.original)[names(UV.original) == 'PA11'] <- 'PQ11'
+
+UV.Nao <- UV.original[UV.original$Condition==3,]
+UV.Front <- UV.original[UV.original$Condition==2,]
+UV.Back <- UV.original[UV.original$Condition==1,]
+names(UV.Nao) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+names(UV.Front) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+names(UV.Back) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+UV.Nao$Condition = NULL
+UV.Back$Condition = NULL
+UV.Front$Condition = NULL
+
+UV.NB <- join( UV.Nao,UV.Back, type = 'right' )
+UV.NF <- join( UV.Nao,UV.Front, type = 'right' )
+UV.Total <- merge( UV.NB,UV.NF,by="SubID",all.x=T,all.y=T )
+
+UV = UV.Total[c("SubID","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")]
+
+for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")) {
+  
+  UV[[var]] = safe.ifelse(is.na(UV.Total[[paste(var,".x",sep="")]]),UV.Total[[paste(var,".y",sep="")]],UV.Total[[paste(var,".x",sep="")]])
+}
+```
+
+```{r calculate_variables}
+UV.Front$Age = (year(as.period(interval(UV.Front$DOB, UV.Front$DOT)))*12) + month(as.period(interval(UV.Front$DOB, UV.Front$DOT))) + (day(as.period(interval(UV.Front$DOB, UV.Front$DOT)))/30)
+
+UV.Back$Age = (year(as.period(interval(UV.Back$DOB, UV.Back$DOT)))*12) + month(as.period(interval(UV.Back$DOB, UV.Back$DOT))) + (day(as.period(interval(UV.Back$DOB, UV.Back$DOT)))/30)
+
+UV.Nao$Age = (year(as.period(interval(UV.Nao$DOB, UV.Nao$DOT)))*12) + month(as.period(interval(UV.Nao$DOB, UV.Nao$DOT))) + (day(as.period(interval(UV.Nao$DOB, UV.Nao$DOT)))/30)
+
+UV.Front$AgeGroup = factor(ifelse(UV.Front$Age<=72, "1", ifelse(UV.Front$Age<=108, "2", ifelse(UV.Front$Age<=144, "3","4"))))
+UV.Front[ UV.Front == 999 ] <- NA
+
+UV.Back$AgeGroup = factor(ifelse(UV.Back$Age<=72, "1", ifelse(UV.Back$Age<=108, "2", ifelse(UV.Back$Age<=144, "3","4"))))
+UV.Back[ UV.Back == 999 ] <- NA
+
+UV.Nao$AgeGroup = factor(ifelse(UV.Nao$Age<=72, "1", ifelse(UV.Nao$Age<=108, "2", ifelse(UV.Nao$Age<=144, "3","4"))))
+UV.Nao[ UV.Nao == 999 ] <- NA
+
+
+isGirl <- UV$Sex == "1"
+```
+
+```{r UV1}
+aggregate(UV.Front$UV1.Front~AgeGroup,UV.Front,mean)
+aggregate(UV.Back$UV1.Back~AgeGroup,UV.Back,mean)
+aggregate(UV.Nao$UV1.Nao~AgeGroup,UV.Nao,mean)
+
+aggregate(UV.Front$UV1.Front~AgeGroup,UV.Front,s.error)
+aggregate(UV.Back$UV1.Back~AgeGroup,UV.Back,s.error)
+aggregate(UV.Nao$UV1.Nao~AgeGroup,UV.Nao,s.error)
+```
+
+```{r UV2}
+aggregate(UV.Front$UV2.Front~AgeGroup,UV.Front,mean)
+aggregate(UV.Back$UV2.Back~AgeGroup,UV.Back,mean)
+aggregate(UV.Nao$UV2.Nao~AgeGroup,UV.Nao,mean)
+
+aggregate(UV.Front$UV2.Front~AgeGroup,UV.Front,s.error)
+aggregate(UV.Back$UV2.Back~AgeGroup,UV.Back,s.error)
+aggregate(UV.Nao$UV2.Nao~AgeGroup,UV.Nao,s.error)
+```
+
+```{r IS4}
+aggregate(UV.Front$IS4.Front~AgeGroup,UV.Front,mean)
+aggregate(UV.Back$IS4.Back~AgeGroup,UV.Back,mean)
+aggregate(UV.Nao$IS4.Nao~AgeGroup,UV.Nao,mean)
+
+aggregate(UV.Front$IS4.Front~AgeGroup,UV.Front,s.error)
+aggregate(UV.Back$IS4.Back~AgeGroup,UV.Back,s.error)
+aggregate(UV.Nao$IS4.Nao~AgeGroup,UV.Nao,s.error)
+```

@@ -1,0 +1,329 @@
+---
+title: 'Uncanny Valley: Data Mining'
+author: "Kimberly A. Brink"
+date: "March 23, 2016"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.path='Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r install_libraries}
+library(lubridate)
+library(Hmisc)
+library(plyr)
+library(psy)
+library(FAiR)
+library(psych)
+library(rpart)
+library(randomForest)
+library(tree)
+options("scipen"=100, "digits"= 4)
+```
+
+```{r standard_error}
+s.error <- function(x) sd(x,na.rm=TRUE)/sqrt(length(x))
+```
+
+```{r safe_ifelse}
+safe.ifelse <- function(cond, yes, no) {
+      class.y <- class(yes)
+      if ("factor" %in% class.y) {  # Note the small condition change here
+        levels.y = levels(yes)
+      }
+      X <- ifelse(cond,yes,no)
+      if ("factor" %in% class.y) {  # Note the small condition change here
+        X = as.factor(X)
+        levels(X) = levels.y
+      } else {
+        class(X) <- class.y
+      }
+      return(X)
+}
+```
+
+```{r screeplot_factanal}
+screeplot.factanal <- function(fa.fit,xlab="factor",ylab="eigenvalue",...) {
+	# sum-of-squares function for repeated application
+	sosq <- function(v) {sum(v^2)}
+	# Get the matrix of loadings
+	my.loadings <- as.matrix(fa.fit$loadings)
+	# Eigenvalues can be recovered as sum of
+	# squares of each column
+	evalues <- apply(my.loadings,2,sosq)
+	plot(evalues,xlab=xlab,ylab=ylab,...)
+}
+```
+
+```{r load_file}
+filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - Data.sav"
+UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F)
+```
+
+```{r formatting}
+UV.original$Age = NULL
+UV.original$AgeGroup = NULL
+UV.original$AgeYear = NULL
+UV.original$COMME0 = NULL
+names(UV.original)[names(UV.original) == 'VAR00001'] <- 'Comments'
+names(UV.original)[names(UV.original) == 'PA11'] <- 'PQ11'
+
+UV.Nao <- UV.original[UV.original$Condition==3,]
+UV.Front <- UV.original[UV.original$Condition==2,]
+UV.Back <- UV.original[UV.original$Condition==1,]
+names(UV.Nao) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+names(UV.Front) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+names(UV.Back) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+UV.Nao$Condition = NULL
+UV.Back$Condition = NULL
+UV.Front$Condition = NULL
+
+#This is not working correctly
+UV.NB <- join( UV.Back,UV.Nao )
+UV.NF <- join( UV.Front,UV.Nao )
+UV.Total <- merge( UV.NB,UV.NF,by="SubID",all.x=T,all.y=T )
+
+UV = UV.Total[c("SubID","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")]
+
+for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")) {
+  
+  UV[[var]] = safe.ifelse(is.na(UV.Total[[paste(var,".x",sep="")]]),UV.Total[[paste(var,".y",sep="")]],UV.Total[[paste(var,".x",sep="")]])
+}
+
+UV = UV[which(!is.na(UV$SubID)),]
+```
+
+```{r calculate_variables}
+UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interval(UV$DOB, UV$DOT))) + (day(as.period(interval(UV$DOB, UV$DOT)))/30)
+#UV$UV_index = (UV$UV1 + UV$UV2) / 2
+#UV$CondByAge = UV$Condition * UV$Age
+UV$AgeGroup = factor(ifelse(UV$Age<=72, "1", ifelse(UV$Age<=108, "2", ifelse(UV$Age<=144, "3", "4"))))
+```
+
+##Exploratory factor analysis for parent questionnaire
+Factor analysis with nonorthogonal promax rotation
+
+```{r EFA_PQ}
+PQ <- c("PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ15a","PQ16")
+efa.PQ <- factanal(na.omit(UV[PQ]), 7, rotation="promax",scores="regression")
+screeplot.factanal(efa.PQ)
+
+efa.PQ <- factanal(na.omit(UV[PQ]), 5, rotation="promax",scores="regression")
+print(efa.PQ, digits=2, cutoff=.3, sort=TRUE)
+PQ.factor1 <- c("PQ1","PQ2","PQ3") #robots
+PQ.factor2 <- c("PQ8","PQ9") #tablets
+PQ.factor3 <- c("PQ10","PQ12","PQ11") #science and real animals
+PQ.factor4 <- c("PQ7","PQ6") #computers
+PQ.factor5 <- c("PQ16","PQ4","PQ5") #smartphones and importance of technology
+
+psych::alpha(UV[PQ.factor1]) #alpha = .73
+psych::alpha(UV[PQ.factor2]) #alpha = .81
+psych::alpha(UV[PQ.factor3]) #alpha = .71
+psych::alpha(UV[PQ.factor4]) #alpha = .52
+psych::alpha(UV[PQ.factor5]) #alpha =.5
+```
+
+##Exploratory factor analysis for Kaspar Front
+Factor analysis with nonorthogonal promax rotation
+
+```{r EFA_qFront}
+Q.Front <- c("UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front")
+
+efa.QF <- factanal(na.omit(UV[Q.Front]), 6, rotation="promax",scores="regression")
+screeplot.factanal(efa.QF)
+
+efa.QF <- factanal(na.omit(UV[Q.Front]), 2, rotation="promax",scores="regression")
+print(efa.QF, digits=2, cutoff=.3, sort=TRUE)
+front.factor1 <- c("IS3.Front","IS5.Front","IS6.Front") #pain,fear,hunger 
+front.factor2 <- c("IS1.Front","IS2.Front","A2.Front","E1.Front") #think, moral, choose, identity
+
+psych::alpha(UV[front.factor1]) #alpha = .83
+psych::alpha(UV[front.factor2]) #alpha = .7
+```
+
+##Exploratory factor analysis for Kaspar Back
+Factor analysis with nonorthogonal promax rotation
+
+```{r EFA_qBack}
+Q.Back <- c("UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")
+#Q.Back <- c("UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")
+
+efa.QB <- factanal(na.omit(UV[Q.Back]), 6, rotation="promax",scores="regression")
+screeplot.factanal(efa.QB)
+
+efa.QB <- factanal(na.omit(UV[Q.Back]), 3, rotation="promax",scores="regression")
+print(efa.QB, digits=2, cutoff=.3, sort=TRUE)
+
+back.factor1 <- c("IS3.Back","IS5.Back","IS6.Back") #pain,fear,hunger 
+back.factor2 <- c("IS1.Back","IS2.Back","IS4.Back","A2.Back","E1.Back") #think, moral, choose, identity (feelings removed)
+
+psych::alpha(UV[back.factor1]) #alpha = .75
+psych::alpha(UV[back.factor2]) #alpha = .8, .75
+```
+
+##Exploratory factor analysis for Nao
+Factor analysis with nonorthogonal promax rotation
+
+```{r EFA_qNao}
+Q.Nao <- c("UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao")
+
+efa.QN <- factanal(na.omit(UV[Q.Nao]), 6, rotation="promax",scores="regression")
+screeplot.factanal(efa.QN)
+
+efa.QN <- factanal(na.omit(UV[Q.Nao]), 2, rotation="promax",scores="regression")
+print(efa.QN, digits=2, cutoff=.3, sort=TRUE)
+
+nao.factor1 <- c("IS3.Nao","IS5.Nao","IS6.Nao") #pain,fear,hunger 
+nao.factor2 <- c("IS1.Nao","IS2.Nao","A2.Nao","E1.Nao") #think, moral, choose, identity (feelings removed)
+
+alpha(UV[nao.factor1]) #alpha = .82
+alpha(UV[nao.factor2]) #alpha = .79, .73
+```
+
+```{r aggregates}
+UV$PQ.robots <- (UV$PQ1 + UV$PQ2 + UV$PQ3)/3 #robots
+UV$PQ.tablets <- (UV$PQ8 + UV$PQ9)/2 #tablets
+UV$PQ.science <- (UV$PQ10 + UV$PQ12 + UV$PQ11)/3 #science and real animals
+UV$PQ.computers <- (UV$PQ7 + UV$PQ6)/2 #computers
+UV$PQ.smartphones <- (UV$PQ16 + UV$PQ4 + UV$PQ5)/3 #smartphones and importance of technology
+
+UV$Front.ExpIndex = (UV$IS3.Front + UV$IS5.Front)/2
+UV$Back.ExpIndex = (UV$IS3.Back + UV$IS5.Back)/2
+UV$Nao.ExpIndex = (UV$IS3.Nao + UV$IS5.Nao)/2
+
+UV$Front.AgIndex = (UV$A2.Front + UV$IS1.Front)/2
+UV$Back.AgIndex = (UV$A2.Back + UV$IS1.Back)/2
+UV$Nao.AgIndex = (UV$A2.Nao + UV$IS1.Nao)/2
+
+UV$Front.AgIndex4 = (UV$IS1.Front + UV$IS2.Front + UV$A2.Front + UV$E1.Front)/4
+UV$Back.AgIndex4 = (UV$IS1.Back + UV$IS2.Back + UV$A2.Back + UV$E1.Back)/4
+UV$Nao.AgIndex4 = (UV$IS1.Nao + UV$IS2.Nao + UV$A2.Nao + UV$E1.Nao)/4
+
+UV$Front.ExpIndex3 = (UV$IS3.Front + UV$IS5.Front + UV$IS6.Front)/3
+UV$Back.ExpIndex3 = (UV$IS3.Back + UV$IS5.Back + UV$IS6.Back)/3
+UV$Nao.ExpIndex3 = (UV$IS3.Nao + UV$IS5.Nao + UV$IS6.Nao)/3
+
+UV$Front.UVIndex = (UV$UV1.Front + UV$UV2.Front)/2
+UV$Back.UVIndex = (UV$UV1.Back + UV$UV2.Back)/2
+UV$Nao.UVIndex = (UV$UV1.Nao + UV$UV2.Nao)/2
+```
+
+##Demographics.
+There are `r length(UV$SubID)` participants.
+
+```{r}
+UV = UV[ which( UV$Age <= 216 & UV$Age >= 30 ), ]
+UV[ UV == 999 ] <- NA
+
+isGirl <- UV$Sex == "1"
+UV$Sex = ifelse(UV$Sex=="1","Female","Male")
+```
+After reducing participants outside of the age range, there are `r length(UV$SubID)` participants.
+
+The average age of the sample is `r round(mean(UV$Age)/12, digits = 2)` years.
+
+The minimum age of the sample is `r round(min(UV$Age)/12, digits = 2)` years.
+
+The maximum age of the sample is `r round(max(UV$Age)/12, digits = 2)` years
+
+There are `r sum(isGirl)` (`r (sum(isGirl)/length(UV$SubID))*100`%) females in the sample.
+
+The most recent date of test was `r max(UV$DOT)`.
+
+The first date of test was `r min(UV$DOT)`.
+
+Total number of participants older than 14 is `r  sum((UV$Age/12)>=14)`
+
+```{r exploratory}
+UV$Row.names = NULL
+UV$Row.names = NULL
+table(UV$Sex,UV$AgeGroup)
+table(UV$Sex,UV$Order)
+table(UV$Order,UV$AgeGroup)
+
+summary(glm(Front.ExpIndex3~PQ.robots+PQ.smartphones+PQ.computers+PQ.science+PQ.tablets+Age,data=UV))
+summary(glm(Back.ExpIndex3~PQ.robots+PQ.smartphones+PQ.computers+PQ.science+PQ.tablets+Age,data=UV))
+summary(glm(Nao.ExpIndex3~PQ.robots+PQ.smartphones+PQ.computers+PQ.science+PQ.tablets+Age,data=UV))
+
+summary(glm(Front.AgIndex4~PQ.robots+PQ.smartphones+PQ.computers+PQ.science+PQ.tablets+Age,data=UV))
+summary(glm(Back.AgIndex4~PQ.robots+PQ.smartphones+PQ.computers+PQ.science+PQ.tablets+Age,data=UV))
+summary(glm(Nao.AgIndex4~PQ.robots+PQ.smartphones+PQ.computers+PQ.science+PQ.tablets+Age,data=UV))
+
+Front.Exp.C = scale(UV$Front.ExpIndex3, scale = FALSE)
+Back.Exp.C = scale(UV$Back.ExpIndex3, scale = FALSE)
+Nao.Exp.C = scale(UV$Nao.ExpIndex3, scale = FALSE)
+
+Front.Ag.C = scale(UV$Front.AgIndex4, scale = FALSE)
+Back.Ag.C = scale(UV$Back.AgIndex4, scale = FALSE)
+Nao.Ag.C = scale(UV$Nao.AgIndex4, scale = FALSE)
+
+Age.C = scale(UV$Age, scale = FALSE)
+
+Front.HL.C = scale(UV$Front.HL1, scale = FALSE)
+Back.HL.C = scale(UV$Back.HL1, scale = FALSE)
+Nao.HL.C = scale(UV$Nao.HL1, scale = FALSE)
+
+summary(glm(Front.UVIndex~Front.ExpIndex3+Front.AgIndex4+Age+HL1.Front,data=UV)) #try testing interaction but center vars 1st
+summary(glm(Back.UVIndex~Back.ExpIndex3+Back.AgIndex4+Age,data=UV))
+summary(glm(Nao.UVIndex~Nao.ExpIndex3+Nao.AgIndex4+Age,data=UV))
+
+summary(glm(Front.UVIndex~Front.Exp.C+Front.Ag.C+Age.C+Front.HL1.C+Front.Ag.C*Age.C,data=UV))
+summary(glm(Back.UVIndex~Back.Exp.C+Back.Ag.C+Age.C+Back.HL1.C+Back.Ag.C*Age.C,data=UV))
+summary(glm(Nao.UVIndex~Nao.Exp.C+Nao.Ag.C+Age.C+Nao.HL1.C+Nao.Ag.C*Age.C,data=UV))
+```
+
+```{r lasso}
+library(glmnet)
+library(pls)
+
+UV.Front$Age = (year(as.period(interval(UV.Front$DOB, UV.Front$DOT)))*12) + month(as.period(interval(UV.Front$DOB, UV.Front$DOT))) + (day(as.period(interval(UV.Front$DOB, UV.Front$DOT)))/30)
+UV.Front$UVIndex = (UV.Front$UV1.Front + UV.Front$UV2.Front)/2
+UV.Front$ExpIndex3 = (UV.Front$IS3.Front + UV.Front$IS5.Front + UV.Front$IS6.Front)/3
+UV.Front$AgIndex4 = (UV.Front$IS1.Front + UV.Front$IS2.Front + UV.Front$A2.Front + UV.Front$E1.Front)/4
+UV.Front$PQ.robots <- (UV.Front$PQ1 + UV.Front$PQ2 + UV.Front$PQ3)/3 #robots
+UV.Front$PQ.tablets <- (UV.Front$PQ8 + UV.Front$PQ9)/2 #tablets
+UV.Front$PQ.science <- (UV.Front$PQ10 + UV.Front$PQ12 + UV.Front$PQ11)/3 #science and real animals
+UV.Front$PQ.computers <- (UV.Front$PQ7 + UV.Front$PQ6)/2 #computers
+UV.Front$PQ.smartphones <- (UV.Front$PQ16 + UV.Front$PQ4 + UV.Front$PQ5)/3 #smartphones and importance of technology
+
+UV.Front <- within(UV.Front, rm("Comments","PQ14","PQ15b","DOT","DOB","SubID","UV1.Front","UV2.Front","IS3.Front","IS5.Front","IS6.Front","IS1.Front","IS2.Front","A2.Front","E1.Front","PQ1","PQ2","PQ3","PQ8","PQ9","PQ10","PQ12","PQ11","PQ7","PQ6","PQ16","PQ4","PQ5","UV3.Front"))
+
+UV.Front <- UV.Front[complete.cases(UV.Front),]
+
+set.seed(500)
+train = sample(1:nrow(UV.Front),.7*nrow(UV.Front))
+test = (-train)
+
+uv.index = UV.Front$UVIndex
+uv.index.test = uv.index[test]
+
+p = model.matrix(UVIndex~.,data=UV.Front)[,-1]
+lambdas=10^seq(10, -2 , length=100) #grid of values ranging from $\lambda$ = $10^10$ to $\lambda$ = $10^-2$
+
+set.seed(600)
+cv.out=cv.glmnet(p[train,],uv.index[train],alpha=1) 
+bestlam=cv.out$lambda.min
+bestlam
+
+lasso.fit = glmnet(p[train,], uv.index[train], alpha=1, lambda=lambdas) 
+lasso.pred = predict(lasso.fit, s=bestlam, newx=p[test,])
+mean((lasso.pred-uv.index.test)^2)
+
+out=glmnet(p,uv.index,alpha=1,lambda=lambdas) #alpha=1 (lasso)
+predict(out, type="coefficients", s=bestlam)[1:15,] #some can be 0
+```
+
+```{r randomForest}
+tree.uvindex = tree(UVIndex~.,data=UV.Front[train,])
+summary(tree.uvindex)
+plot(tree.uvindex)
+text(tree.uvindex,pretty=0,cex=.5)
+tree.pred = predict(tree.uvindex,UV.Front[test,])
+
+set.seed(200)
+rf.uvindex = randomForest(UVIndex~., data=UV.Front[train,], importance=TRUE)
+imp.rf.uvindex = data.frame(importance(rf.uvindex))
+imp.rf.uvindex[order(-imp.rf.uvindex$X.IncMSE),]
+```

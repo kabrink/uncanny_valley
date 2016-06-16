@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r global_options, include=FALSE}
-knitr::opts_chunk$set(fig.path='Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, echo=FALSE, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(fig.path='Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, warning=FALSE, message=FALSE)
 ```
 
 ```{r install_libraries}
@@ -93,9 +93,6 @@ UV.Back[ UV.Back == 999 ] <- NA
 
 UV.Nao$AgeGroup = factor(ifelse(UV.Nao$Age<=72, "1", ifelse(UV.Nao$Age<=108, "2", ifelse(UV.Nao$Age<=144, "3","4"))))
 UV.Nao[ UV.Nao == 999 ] <- NA
-
-
-isGirl <- UV$Sex == "1"
 ```
 
 ```{r UV1}
@@ -126,4 +123,43 @@ aggregate(UV.Nao$IS4.Nao~AgeGroup,UV.Nao,mean)
 aggregate(UV.Front$IS4.Front~AgeGroup,UV.Front,s.error)
 aggregate(UV.Back$IS4.Back~AgeGroup,UV.Back,s.error)
 aggregate(UV.Nao$IS4.Nao~AgeGroup,UV.Nao,s.error)
+```
+
+```{r UV_index}
+#correlation between weird and creepy
+cor.test(UV.Front$UV1.Front, UV.Front$UV2.Front)
+cor.test(UV.Back$UV1.Back, UV.Back$UV2.Back)
+cor.test(UV.Nao$UV1.Nao, UV.Nao$UV2.Nao)
+
+#calculate composite of uncanny valley measurements
+UV.Front$UV_index = (UV.Front$UV1.Front + UV.Front$UV2.Front) / 2
+UV.Back$UV_index = (UV.Back$UV1.Back + UV.Back$UV2.Back) / 2
+UV.Nao$UV_index = (UV.Nao$UV1.Nao + UV.Nao$UV2.Nao) / 2
+
+#calculate means for uncanny composite by age groups
+aggregate(UV.Front$UV_index~AgeGroup,UV.Front,mean)
+aggregate(UV.Back$UV_index~AgeGroup,UV.Back,mean)
+aggregate(UV.Nao$UV_index~AgeGroup,UV.Nao,mean)
+
+#calculate standard error for uncanny composite by age groups
+aggregate(UV.Front$UV_index~AgeGroup,UV.Front,s.error)
+aggregate(UV.Back$UV_index~AgeGroup,UV.Back,s.error)
+aggregate(UV.Nao$UV_index~AgeGroup,UV.Nao,s.error)
+```
+
+```{r}
+#Calculate agency aggregate
+UV.Front$Front.AgIndex4 = (UV.Front$IS1.Front + UV.Front$IS2.Front + UV.Front$A2.Front + UV.Front$E1.Front)/4
+UV.Back$Back.AgIndex4 = (UV.Back$IS1.Back + UV.Back$IS2.Back + UV.Back$A2.Back + UV.Back$E1.Back)/4
+UV.Nao$Nao.AgIndex4 = (UV.Nao$IS1.Nao + UV.Nao$IS2.Nao + UV.Nao$A2.Nao + UV.Nao$E1.Nao)/4
+
+#calculate means for Agency aggregate by age groups
+aggregate(UV.Front$Front.AgIndex4~AgeGroup,UV.Front,mean)
+aggregate(UV.Back$Back.AgIndex4~AgeGroup,UV.Back,mean)
+aggregate(UV.Nao$Nao.AgIndex4~AgeGroup,UV.Nao,mean)
+
+#calculate standard error for Agency aggregate by age groups
+aggregate(UV.Front$Front.AgIndex4~AgeGroup,UV.Front,s.error)
+aggregate(UV.Back$Back.AgIndex4~AgeGroup,UV.Back,s.error)
+aggregate(UV.Nao$Nao.AgIndex4~AgeGroup,UV.Nao,s.error)
 ```

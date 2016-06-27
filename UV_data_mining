@@ -62,6 +62,9 @@ UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F)
 ```
 
 ```{r formatting}
+UV.original <- UV.original[UV.original$Order==1|UV.original$Order==2|is.na(UV.original$Order),]
+UV.original = UV.original[which(!is.na(UV.original$SubID)),]
+
 UV.original$Age = NULL
 UV.original$AgeGroup = NULL
 UV.original$AgeYear = NULL
@@ -72,7 +75,15 @@ names(UV.original)[names(UV.original) == 'PA11'] <- 'PQ11'
 UV.Nao <- UV.original[UV.original$Condition==3,]
 UV.Front <- UV.original[UV.original$Condition==2,]
 UV.Back <- UV.original[UV.original$Condition==1,]
+
+UV.Nao = UV.Nao[which(!is.na(UV.Nao$SubID)),]
+UV.Front = UV.Front[which(!is.na(UV.Front$SubID)),]
+UV.Back = UV.Back[which(!is.na(UV.Back$SubID)),]
+
 names(UV.Nao) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+UV.Nao=UV.Nao[,!(names(UV.Nao) %in% c("Sex","DOB","DOT","Order","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments"))]
+
 names(UV.Front) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
 names(UV.Back) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
 
@@ -92,8 +103,8 @@ for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao",
   UV[[var]] = safe.ifelse(is.na(UV.Total[[paste(var,".x",sep="")]]),UV.Total[[paste(var,".y",sep="")]],UV.Total[[paste(var,".x",sep="")]])
 }
 
-UV = UV[which(!is.na(UV$SubID)),]
 ```
+
 
 ```{r calculate_variables}
 UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interval(UV$DOB, UV$DOT))) + (day(as.period(interval(UV$DOB, UV$DOT)))/30)
@@ -114,15 +125,15 @@ efa.PQ <- factanal(na.omit(UV[PQ]), 5, rotation="promax",scores="regression")
 print(efa.PQ, digits=2, cutoff=.3, sort=TRUE)
 PQ.factor1 <- c("PQ1","PQ2","PQ3") #robots
 PQ.factor2 <- c("PQ8","PQ9") #tablets
-PQ.factor3 <- c("PQ10","PQ12","PQ11") #science and real animals
-PQ.factor4 <- c("PQ7","PQ6") #computers
-PQ.factor5 <- c("PQ16","PQ4","PQ5") #smartphones and importance of technology
+PQ.factor4 <- c("PQ10","PQ12") 
+PQ.factor3 <- c("PQ7","PQ5","PQ13")
+PQ.factor5 <- c("PQ16") 
 
-psych::alpha(UV[PQ.factor1]) #alpha = .73
-psych::alpha(UV[PQ.factor2]) #alpha = .81
-psych::alpha(UV[PQ.factor3]) #alpha = .71
-psych::alpha(UV[PQ.factor4]) #alpha = .52
-psych::alpha(UV[PQ.factor5]) #alpha =.5
+psych::alpha(UV[PQ.factor1]) #alpha = .72
+psych::alpha(UV[PQ.factor2]) #alpha = .79
+psych::alpha(UV[PQ.factor3]) #alpha = .6
+psych::alpha(UV[PQ.factor4]) #alpha = .75
+psych::alpha(UV[PQ.factor5])
 ```
 
 ##Exploratory factor analysis for Kaspar Front
@@ -135,12 +146,12 @@ efa.QF <- factanal(na.omit(UV[Q.Front]), 6, rotation="promax",scores="regression
 screeplot.factanal(efa.QF)
 
 efa.QF <- factanal(na.omit(UV[Q.Front]), 2, rotation="promax",scores="regression")
-print(efa.QF, digits=2, cutoff=.3, sort=TRUE)
+print(efa.QF, digits=2, cutoff=.4, sort=TRUE)
 front.factor1 <- c("IS3.Front","IS5.Front","IS6.Front") #pain,fear,hunger 
-front.factor2 <- c("IS1.Front","IS2.Front","A2.Front","E1.Front") #think, moral, choose, identity
+front.factor2 <- c("IS1.Front","IS2.Front","A2.Front","IS4.Front") #think, moral, choose
 
-psych::alpha(UV[front.factor1]) #alpha = .83
-psych::alpha(UV[front.factor2]) #alpha = .7
+psych::alpha(UV[front.factor1]) #alpha = .86
+psych::alpha(UV[front.factor2]) #alpha = .72
 ```
 
 ##Exploratory factor analysis for Kaspar Back
@@ -153,11 +164,11 @@ Q.Back <- c("UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4
 efa.QB <- factanal(na.omit(UV[Q.Back]), 6, rotation="promax",scores="regression")
 screeplot.factanal(efa.QB)
 
-efa.QB <- factanal(na.omit(UV[Q.Back]), 3, rotation="promax",scores="regression")
-print(efa.QB, digits=2, cutoff=.3, sort=TRUE)
+efa.QB <- factanal(na.omit(UV[Q.Back]), 2, rotation="promax",scores="regression")
+print(efa.QB, digits=2, cutoff=.4, sort=TRUE)
 
 back.factor1 <- c("IS3.Back","IS5.Back","IS6.Back") #pain,fear,hunger 
-back.factor2 <- c("IS1.Back","IS2.Back","IS4.Back","A2.Back","E1.Back") #think, moral, choose, identity (feelings removed)
+back.factor2 <- c("IS1.Back","IS2.Back","IS4.Back","A2.Back") #think, moral, choose 
 
 psych::alpha(UV[back.factor1]) #alpha = .75
 psych::alpha(UV[back.factor2]) #alpha = .8, .75
@@ -176,16 +187,16 @@ efa.QN <- factanal(na.omit(UV[Q.Nao]), 2, rotation="promax",scores="regression")
 print(efa.QN, digits=2, cutoff=.3, sort=TRUE)
 
 nao.factor1 <- c("IS3.Nao","IS5.Nao","IS6.Nao") #pain,fear,hunger 
-nao.factor2 <- c("IS1.Nao","IS2.Nao","A2.Nao","E1.Nao") #think, moral, choose, identity (feelings removed)
+nao.factor2 <- c("IS1.Nao","IS2.Nao","A2.Nao","IS4.Nao") #think, moral, choose
 
-alpha(UV[nao.factor1]) #alpha = .82
-alpha(UV[nao.factor2]) #alpha = .79, .73
+alpha(UV[nao.factor1]) #alpha = .77
+alpha(UV[nao.factor2]) #alpha = .79
 ```
 
 ```{r aggregates}
 UV$PQ.robots <- (UV$PQ1 + UV$PQ2 + UV$PQ3)/3 #robots
 UV$PQ.tablets <- (UV$PQ8 + UV$PQ9)/2 #tablets
-UV$PQ.science <- (UV$PQ10 + UV$PQ12 + UV$PQ11)/3 #science and real animals
+UV$PQ.science <- (UV$PQ10 + UV$PQ12)/3 #science and real animals
 UV$PQ.computers <- (UV$PQ7 + UV$PQ6)/2 #computers
 UV$PQ.smartphones <- (UV$PQ16 + UV$PQ4 + UV$PQ5)/3 #smartphones and importance of technology
 

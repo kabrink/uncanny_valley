@@ -1,0 +1,110 @@
+---
+title: "Uncanny Valley - Manuscript"
+author: "Kimberly A. Brink"
+date: "June 30, 2016"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.path='Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r install_libraries}
+library(lubridate)
+library(Hmisc)
+```
+
+```{r standard_error}
+s.error <- function(x) sd(x,na.rm=TRUE)/sqrt(length(x))
+```
+
+```{r safe_ifelse}
+safe.ifelse <- function(cond, yes, no) {
+      class.y <- class(yes)
+      if ("factor" %in% class.y) {  # Note the small condition change here
+        levels.y = levels(yes)
+      }
+      X <- ifelse(cond,yes,no)
+      if ("factor" %in% class.y) {  # Note the small condition change here
+        X = as.factor(X)
+        levels(X) = levels.y
+      } else {
+        class(X) <- class.y
+      }
+      return(X)
+}
+```
+
+```{r screeplot_factanal}
+screeplot.factanal <- function(fa.fit,xlab="factor",ylab="eigenvalue",...) {
+	# sum-of-squares function for repeated application
+	sosq <- function(v) {sum(v^2)}
+	# Get the matrix of loadings
+	my.loadings <- as.matrix(fa.fit$loadings)
+	# Eigenvalues can be recovered as sum of
+	# squares of each column
+	evalues <- apply(my.loadings,2,sosq)
+	plot(evalues,xlab=xlab,ylab=ylab,...)
+}
+```
+
+```{r load_file}
+filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - Data.sav"
+UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F)
+```
+
+```{r formatting}
+UV.original <- UV.original[UV.original$Order==1|UV.original$Order==2|is.na(UV.original$Order),]
+UV.original = UV.original[which(!is.na(UV.original$SubID)),]
+
+UV.original$Age = NULL
+UV.original$AgeGroup = NULL
+UV.original$AgeYear = NULL
+UV.original$COMME0 = NULL
+names(UV.original)[names(UV.original) == 'VAR00001'] <- 'Comments'
+names(UV.original)[names(UV.original) == 'PA11'] <- 'PQ11'
+
+UV.Nao <- UV.original[UV.original$Condition==3,]
+UV.Front <- UV.original[UV.original$Condition==2,]
+UV.Back <- UV.original[UV.original$Condition==1,]
+
+UV.Nao = UV.Nao[which(!is.na(UV.Nao$SubID)),]
+UV.Front = UV.Front[which(!is.na(UV.Front$SubID)),]
+UV.Back = UV.Back[which(!is.na(UV.Back$SubID)),]
+
+names(UV.Nao) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+UV.Nao=UV.Nao[,!(names(UV.Nao) %in% c("Sex","DOB","DOT","Order","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments"))]
+
+names(UV.Front) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+names(UV.Back) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+UV.Nao$Condition = NULL
+UV.Back$Condition = NULL
+UV.Front$Condition = NULL
+
+#This is not working correctly
+UV.NB <- join( UV.Back,UV.Nao )
+UV.NF <- join( UV.Front,UV.Nao )
+UV.Total <- merge( UV.NB,UV.NF,by="SubID",all.x=T,all.y=T )
+
+UV = UV.Total[c("SubID","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")]
+
+for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")) {
+  
+  UV[[var]] = safe.ifelse(is.na(UV.Total[[paste(var,".x",sep="")]]),UV.Total[[paste(var,".y",sep="")]],UV.Total[[paste(var,".x",sep="")]])
+}
+
+```
+
+
+```{r calculate_variables}
+UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interval(UV$DOB, UV$DOT))) + (day(as.period(interval(UV$DOB, UV$DOT)))/30)
+UV$AgeYears = UV$Age/12
+UV$AgeGroup = factor(ifelse(UV$Age<=72, "1", ifelse(UV$Age<=108, "2", ifelse(UV$Age<=144, "3", "4"))))
+
+#UV$UV_index = (UV$UV1 + UV$UV2) / 2
+#UV$CondByAge = UV$Condition * UV$Age
+```
+
+`r dim(UV)[1]` children, `r round(min(UV$AgeYears),0)` to `r round(max(UV$AgeYears),0)` years old (M = `r round(mean(UV$AgeYears),2))`) were recruited from a local Natural History Museum. The experimenter randomly assigned children to watch one of two videos: a video of a machine-like robot or a video of a human-like one. Children then answered a series of questions concerning their beliefs about the robot’s abilities. In the machine-like robot condition `r sum(UV$Order==1)` children watched 24 s of the robot Kaspar filmed from behind, so that only its wiring and electrical components could be seen (Fig. 1). In the human-like robot condition`r sum(UV$Order==2)` children watched 24 s of video of the robot Kaspar filmed from the front, where its humanlike face was clearly visible (Fig. 1). 

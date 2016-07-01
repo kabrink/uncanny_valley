@@ -4,6 +4,33 @@ author: "Kimberly A. Brink"
 date: "June 30, 2016"
 output: html_document
 ---
+###Survey Questions
+
+Uncanny Valley 1: Do you feel the robot is creepy?
+
+Uncanny Valley 2: Does the robot make you feel weird?
+
+Uncanny Valley 3: Would you want to play with the robot?
+
+Agency 1: Can the robot do things on purpose?
+
+Agency 2: When the robot moves does it choose to move?
+
+Internal State 1: Does the robot think for itself?
+
+Internal State 2: Does the robot know the difference between good and bad?
+
+Internal State 3: Would the robot feel pain?
+
+Internal State 4: Does the robot have feelings?
+
+Internal State 5: Would the robot feel scared?
+
+Internal State 6: Would the robot feel hungry?
+
+Human-likeness 1: Is this robot like a human?
+
+Exploratory 1: Does the robot know it's a robot?
 
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(fig.path='Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, echo=FALSE, warning=FALSE, message=FALSE)
@@ -12,6 +39,7 @@ knitr::opts_chunk$set(fig.path='Figures/', dev=c('png','postscript'), fig.width 
 ```{r install_libraries}
 library(lubridate)
 library(Hmisc)
+library(plyr)
 ```
 
 ```{r standard_error}
@@ -48,12 +76,50 @@ screeplot.factanal <- function(fa.fit,xlab="factor",ylab="eigenvalue",...) {
 }
 ```
 
+```{r plot_settings}
+responseAxis <- 1.3
+responseAxis2 <- 1.9
+ageAxis <- 2
+humanColor = 'red'
+machineColor = 'darkblue'
+plotFill = 'white'
+titleSize = 3
+titleSizeSmall = 2
+titleSizeExtraSmall = 1.5
+font = "Georgia"
+lineWidth = 5
+```
+
+```{r barByAge_plot_function}
+barByAge <-function(v,data,title){
+means <- aggregate(v~AgeGroup,data,mean)
+se <- aggregate(v~AgeGroup,data,s.error)
+
+meansM<-matrix(means$v,ncol=4,byrow=FALSE)
+se<-matrix(se$v,ncol=4,byrow=FALSE)
+colnames(meansM) <- c('<6','6-9','9-12','>12')
+rownames(meansM) <- levels(factor(means$Robot))
+#means <- as.table(means)
+meansR <- round(meansM,2)
+g.range = range(0,ceiling(max(means$v)+1))
+
+plot.new()
+barCenters <- barplot(meansM, col=c(machineColor), legend = rownames(meansM), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, cex.main = 2.5)
+axis(2, at = c(0:4), labels = c('','No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+arrows(barCenters, meansM-se, barCenters, meansM+se, lwd = 3, length=0.05, angle=90, code=3)
+text(barCenters,meansM+1.5*se+.1,label=meansR, cex = responseAxis)
+}
+```
+
+
 ```{r load_file}
+#library Hmisc
 filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - Data.sav"
 UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F)
 ```
 
 ```{r formatting}
+#library plyr
 UV.original <- UV.original[UV.original$Order==1|UV.original$Order==2|is.na(UV.original$Order),]
 UV.original = UV.original[which(!is.na(UV.original$SubID)),]
 
@@ -99,12 +165,79 @@ for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao",
 
 
 ```{r calculate_variables}
+#library lubridate
 UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interval(UV$DOB, UV$DOT))) + (day(as.period(interval(UV$DOB, UV$DOT)))/30)
 UV$AgeYears = UV$Age/12
 UV$AgeGroup = factor(ifelse(UV$Age<=72, "1", ifelse(UV$Age<=108, "2", ifelse(UV$Age<=144, "3", "4"))))
-
+UV = UV[which(UV$AgeYears>1),]
+isGirl <- UV$Sex == "1"
 #UV$UV_index = (UV$UV1 + UV$UV2) / 2
 #UV$CondByAge = UV$Condition * UV$Age
 ```
 
-`r dim(UV)[1]` children, `r round(min(UV$AgeYears),0)` to `r round(max(UV$AgeYears),0)` years old (M = `r round(mean(UV$AgeYears),2))`) were recruited from a local Natural History Museum. The experimenter randomly assigned children to watch one of two videos: a video of a machine-like robot or a video of a human-like one. Children then answered a series of questions concerning their beliefs about the robot’s abilities. In the machine-like robot condition `r sum(UV$Order==1)` children watched 24 s of the robot Kaspar filmed from behind, so that only its wiring and electrical components could be seen (Fig. 1). In the human-like robot condition`r sum(UV$Order==2)` children watched 24 s of video of the robot Kaspar filmed from the front, where its humanlike face was clearly visible (Fig. 1). 
+`r dim(UV)[1]` children (`r sum(UV$Sex == "1")` females), `r round(min(UV$AgeYears),0)` to `r round(max(UV$AgeYears),0)` years old (M = `r round(mean(UV$AgeYears),2)`) were recruited from a local Natural History Museum. The experimenter randomly assigned children to watch one of two videos: a video of a machine-like robot or a video of a human-like one. Children then answered a series of questions concerning their beliefs about the robot’s abilities. In the machine-like robot condition `r sum(UV$Order==1)` children watched 24 s of the robot Kaspar filmed from behind, so that only its wiring and electrical components could be seen (Fig. 1). In the human-like robot condition`r sum(UV$Order==2)` children watched 24 s of video of the robot Kaspar filmed from the front, where its humanlike face was clearly visible (Fig. 1). 
+
+##Exploratory factor analysis for Kaspar Back
+Factor analysis with nonorthogonal promax rotation
+
+```{r EFA_qBack}
+Q.Back <- c("UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")
+
+efa.QB <- factanal(na.omit(UV[Q.Back]), 6, rotation="promax",scores="regression")
+screeplot.factanal(efa.QB)
+
+efa.QB <- factanal(na.omit(UV[Q.Back]), 3, rotation="promax",scores="regression")
+print(efa.QB, digits=2, cutoff=.3, sort=TRUE)
+
+back.factor1 <- c("IS1.Back","IS2.Back","E1.Back","A2.Back") #think, moral, choose, feelings 
+back.factor2 <- c("IS3.Back","IS5.Back","IS6.Back") #pain,fear,hunger 
+back.factor3 <- c("UV1.Back","UV2.Back","UV3.Back")
+
+a.back.factor1 = psych::alpha(UV[back.factor1]) #alpha = 0.77
+a.back.factor2 = psych::alpha(UV[back.factor2]) #alpha = 0.73
+a.back.factor3 = psych::alpha(UV[back.factor3],check.keys=TRUE) #alpha = 0.7
+```
+
+
+I removed "Does the robot have feelings?" from analysis, because it often resulted in cross loading and created uninterpretable results. 
+
+After considering Kaiser’s criterion (eigenvalues ≥ 1), a scree plot, and model fit indices, the results suggested a three factor model. According to Kaiser's criterion, 3 factors were recommended. The chi-square test of model fit supported the three factor solution, but not 2, $\chi^2$(`r efa.QB$dof`) = `r round(efa.QB$STATISTIC,2)`, $p =$ `r round(efa.QB$PVAL,2)`. The chi-square test is suitable for this sample of `r sum(UV$Order==1)` (less than 500).
+
+This left three factors: Factor 1 (think, moral, choose, aware) with loadings greater than 0.5, $\alpha =$ `r round(a.back.factor1$total[1],2)`, Factor 2 (pain, fear, hunger) with loadings greater than 0.4, $\alpha =$ `r round(a.back.factor2$total[1],2)`, and Factor 3 (creepy, weird, play(reverse coded)) with loadings greater than 0.75,  $\alpha =$ `r round(a.back.factor3$total[1],2)`.
+
+##Exploratory factor analysis for Kaspar Front
+Factor analysis with nonorthogonal promax rotation
+
+```{r EFA_qFront}
+Q.Front <- c("UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front")
+
+efa.QF <- factanal(na.omit(UV[Q.Front]), 6, rotation="promax",scores="regression")
+screeplot.factanal(efa.QF)
+
+efa.QF <- factanal(na.omit(UV[Q.Front]), 3, rotation="promax",scores="regression")
+print(efa.QF, digits=2, cutoff=.3, sort=TRUE)
+
+front.factor1 <- c("IS3.Front","IS5.Front","IS6.Front") #pain,fear,hunger 
+front.factor2 <- c("IS1.Front","A2.Front", "IS2.Front", "E1.Front") #think, moral, choose
+front.factor3 <- c("UV1.Front","UV2.Front")
+
+a.front.factor1 = psych::alpha(UV[front.factor1]) #alpha = .86
+a.front.factor2 = psych::alpha(UV[front.factor2]) #alpha = .66
+a.front.factor3 = psych::alpha(UV[front.factor3]) #alpha = .75
+```
+
+After considering Kaiser’s criterion (eigenvalues ≥ 1), a scree plot, and model fit indices, the results suggested a three factor model. According to Kaiser's criterion, 5 factors are recommended. However, the fourth and fifth factors are not interpretable and only have one item. Therefore, we assessed three factors. The chi-square test of model fit supported the three factor solution, but not 2, $\chi^2$(`r efa.QF$dof`) = `r round(efa.QF$STATISTIC,2)`, $p =$ `r round(efa.QF$PVAL,2)`. The chi-square test is suitable for this sample of `r sum(UV$Order==2)` (less than 500).
+
+This left three factors: Factor 1 (pain, fear, hunger) with loadings greater than 0.75, $\alpha =$ `r round(a.front.factor1$total[1],2)`, Factor 2 (think, choose, moral, aware) with loadings greater than 0.4, $\alpha =$ `r round(a.front.factor2$total[1],2)`, and Factor 3 (creepy, weird) with loadings greater than 0.75,  $\alpha =$ `r round(a.front.factor3$total[1],2)`.
+
+```{r Uncanny_Index}
+UV$UVindex.Back = (UV$UV1.Back+UV$UV2.Back)/2
+UV$UVindex.Front = (UV$UV1.Front+UV$UV2.Front)/2
+
+barByAge(UV$UVindex.Back,UV, "Uncanny Index")
+barByAge(UV$UVindex.Front,UV, "Uncanny Index")
+
+```
+
+
+

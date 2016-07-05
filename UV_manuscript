@@ -33,13 +33,14 @@ Human-likeness 1: Is this robot like a human?
 Exploratory 1: Does the robot know it's a robot?
 
 ```{r global_options, include=FALSE}
-knitr::opts_chunk$set(fig.path='Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, echo=FALSE, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(fig.path='Manuscript Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, echo=FALSE, warning=FALSE, message=FALSE)
 ```
 
-```{r install_libraries}
+```{r load_libraries}
 library(lubridate)
 library(Hmisc)
 library(plyr)
+library(pander)
 ```
 
 ```{r standard_error}
@@ -76,6 +77,20 @@ screeplot.factanal <- function(fa.fit,xlab="factor",ylab="eigenvalue",...) {
 }
 ```
 
+```{r part_cor_function, echo = FALSE}
+#runs a partial correlation that can handle missing values
+part.cor <- function(x, y, z){
+  xres <- residuals(lm(x ~ z, na.action = na.exclude))
+  yres <- residuals(lm(y ~ z, na.action = na.exclude)) 
+  result <- cor.test(xres, yres) 
+  m = data.frame(1)
+  m$estimate = result$estimate 
+  m$tvalue = result$statistic 
+  m$df = result$parameter
+  m$p.value = result$p.value
+  return(m)
+}
+
 ```{r plot_settings}
 responseAxis <- 1.3
 responseAxis2 <- 1.9
@@ -91,23 +106,27 @@ lineWidth = 5
 ```
 
 ```{r barByAge_plot_function}
-barByAge <-function(v,data,title){
-means <- aggregate(v~AgeGroup,data,mean)
-se <- aggregate(v~AgeGroup,data,s.error)
+barByAge <-function(v.back,v.front,data,title){
+means.back <- aggregate(v.back~AgeGroup,data,mean)
+means.front <- aggregate(v.front~AgeGroup,data,mean)
 
-meansM<-matrix(means$v,ncol=4,byrow=FALSE)
-se<-matrix(se$v,ncol=4,byrow=FALSE)
-colnames(meansM) <- c('<6','6-9','9-12','>12')
-rownames(meansM) <- levels(factor(means$Robot))
+se.back <- aggregate(v.back~AgeGroup,data,s.error)
+se.front <- aggregate(v.front~AgeGroup,data,s.error)
+
+means.mat<-matrix(c(means.back$v.back,means.front$v.front),ncol=4,byrow=T)-1
+se.mat<-matrix(c(se.back$v.back,se.front$v.front),ncol=4,byrow=FALSE)
+
+colnames(means.mat) <- c('<6','6-9','9-12','>12')
+rownames(means.mat) <- c('Machine-like','Human-like')
 #means <- as.table(means)
-meansR <- round(meansM,2)
-g.range = range(0,ceiling(max(means$v)+1))
+means.matR <- round(means.mat,2)
+g.range = range(0,ceiling(max(means.mat)+1))
 
 plot.new()
-barCenters <- barplot(meansM, col=c(machineColor), legend = rownames(meansM), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, cex.main = 2.5)
-axis(2, at = c(0:4), labels = c('','No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
-arrows(barCenters, meansM-se, barCenters, meansM+se, lwd = 3, length=0.05, angle=90, code=3)
-text(barCenters,meansM+1.5*se+.1,label=meansR, cex = responseAxis)
+barCenters <- barplot(means.mat, col=c(machineColor,humanColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, cex.main = 2.5)
+axis(2, at = c(0:3), labels = c('', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+arrows(barCenters, means.mat-se.mat, barCenters, means.mat+se.mat, lwd = 3, length=0.05, angle=90, code=3)
+text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis)
 }
 ```
 
@@ -234,10 +253,73 @@ This left three factors: Factor 1 (pain, fear, hunger) with loadings greater tha
 UV$UVindex.Back = (UV$UV1.Back+UV$UV2.Back)/2
 UV$UVindex.Front = (UV$UV1.Front+UV$UV2.Front)/2
 
-barByAge(UV$UVindex.Back,UV, "Uncanny Index")
-barByAge(UV$UVindex.Front,UV, "Uncanny Index")
+barByAge(UV$UVindex.Back,UV$UVindex.Front,UV, "Uncanny Index")
+
+pander(t.test(UV[which(UV$AgeGroup==1),]$UVindex.Back,UV[which(UV$AgeGroup==1),]$UVindex.Front))
+pander(t.test(UV[which(UV$AgeGroup==2),]$UVindex.Back,UV[which(UV$AgeGroup==2),]$UVindex.Front))
+pander(t.test(UV[which(UV$AgeGroup==3),]$UVindex.Back,UV[which(UV$AgeGroup==3),]$UVindex.Front))
+pander(t.test(UV[which(UV$AgeGroup==4),]$UVindex.Back,UV[which(UV$AgeGroup==4),]$UVindex.Front))
+```
+
+```{r Agency_Index}
+UV$Agency.Back = (UV$IS1.Back+UV$IS2.Back+UV$A2.Back+UV$E1.Back)/4
+UV$Agency.Front = (UV$IS1.Front+UV$IS2.Front+UV$A2.Front+UV$E1.Front)/4
+
+barByAge(UV$Agency.Back,UV$Agency.Front,UV, "Agency Composite")
+pander(t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$Agency.Front))
 
 ```
 
+```{r Experience_Index}
+UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back)/3
+UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front)/3
+
+barByAge(UV$Exp.Back,UV$Exp.Front,UV, "Experience Composite")
+```
+
+```{r correlations}
+plot(jitter(UV$UVindex.Back),jitter(UV$Agency.Back))
+pander(cor.test(UV$UVindex.Back,UV$Agency.Back))
+
+plot(jitter(UV$UVindex.Front),jitter(UV$Agency.Front))
+pander(cor.test(UV$UVindex.Front,UV$Agency.Front))
+
+plot(jitter(UV$UVindex.Back),jitter(UV$Exp.Back))
+pander(cor.test(UV$UVindex.Back,UV$Exp.Back))
+
+plot(jitter(UV$UVindex.Front),jitter(UV$Exp.Front))
+pander(cor.test(UV$UVindex.Front,UV$Exp.Front))
+
+plot(jitter(UV$Agency.Back),jitter(UV$Exp.Back))
+pander(cor.test(UV$Agency.Back,UV$Exp.Back))
+
+plot(jitter(UV$Agency.Front),jitter(UV$Exp.Front))
+pander(.)
+```
+
+```{r regressions}
+UVindex = data.frame(SubID=c(UV$SubID, UV$SubID), 
+                     Age=c(UV$Age,UV$Age), 
+                     AgeGroup=c(UV$AgeGroup,UV$AgeGroup), 
+                     Robot=c(rep('Kaspar Back',dim(UV)[1]),rep('Kaspar Front',dim(UV)[1])), 
+                     UVindex=c(UV$UVindex.Back,UV$UVindex.Front), 
+                     Agency=c(UV$Agency.Back,UV$Agency.Front), 
+                     Experience=c(UV$Exp.Back,UV$Exp.Front)) 
+
+UVindex=UVindex[which(!is.na(UVindex$UVindex)),]
+UVindex$UVindex.cent = scale(UVindex$UVindex,center=T,scale=T)
+UVindex$Agency.cent = scale(UVindex$Agency,center=T,scale=T)
+UVindex$Exp.cent = scale(UVindex$Experience,center=T,scale=T)
+  
+UVindex.old = UVindex[which(UVindex$AgeGroup>2),]
 
 
+pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot,data=UVindex)))
+pander(summary(glm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Robot+Exp.cent*Robot,data=UVindex)))
+
+pander(summary(glm(UVindex~Agency+Experience+Age+Robot,data=UVindex.old)))
+
+
+pander(summary(glm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot,data=UVindex.old)))
+pander(summary(glm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Robot+Exp.cent*Robot,data=UVindex.old)))
+```

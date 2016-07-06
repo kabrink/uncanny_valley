@@ -198,46 +198,70 @@ isGirl <- UV$Sex == "1"
 
 ##Exploratory factor analysis for Kaspar Back
 Factor analysis with nonorthogonal promax rotation
+```{r EFA_Back_1}
+Q.Back <- c("UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back", "IS5.Back","IS6.Back","E1.Back","HL1.Back")
 
-```{r EFA_qBack}
-Q.Back <- c("UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")
+#Q.Back <- c("UV1.Back","UV2.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back", "IS5.Back","IS6.Back","HL1.Back")
 
-efa.QB <- factanal(na.omit(UV[Q.Back]), 6, rotation="promax",scores="regression")
+efa.QB <- factanal(na.omit(UV[Q.Back]), 4, rotation="promax",scores="regression")
+screeplot.factanal(efa.QB)
+
+efa.QB <- factanal(na.omit(UV[Q.Back]), 3, rotation="promax",scores="regression")
+print(efa.QB, digits=2, cutoff=.3, sort=TRUE)
+```
+
+```{r EFA_Front_1}
+Q.Front <- c("UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front", "IS5.Front","IS6.Front","E1.Front","HL1.Front")
+
+#Q.Front <- c("UV1.Front","UV2.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front","HL1.Front")
+
+efa.QF <- factanal(na.omit(UV[Q.Front]), 4, rotation="promax",scores="regression")
+screeplot.factanal(efa.QF)
+
+efa.QF <- factanal(na.omit(UV[Q.Front]), 3, rotation="promax",scores="regression")
+print(efa.QF, digits=2, cutoff=.3, sort=TRUE)
+```
+
+```{r EFA_Back_2}
+Q.Back <- c("UV1.Back","UV2.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS5.Back","IS6.Back")
+
+efa.QB <- factanal(na.omit(UV[Q.Back]), 4, rotation="promax",scores="regression")
 screeplot.factanal(efa.QB)
 
 efa.QB <- factanal(na.omit(UV[Q.Back]), 3, rotation="promax",scores="regression")
 print(efa.QB, digits=2, cutoff=.3, sort=TRUE)
 
-back.factor1 <- c("IS1.Back","IS2.Back","E1.Back","A2.Back") #think, moral, choose, feelings 
+back.factor1 <- c("IS1.Back","IS2.Back","A2.Back") #think, moral, choose 
 back.factor2 <- c("IS3.Back","IS5.Back","IS6.Back") #pain,fear,hunger 
-back.factor3 <- c("UV1.Back","UV2.Back","UV3.Back")
+back.factor3 <- c("UV1.Back","UV2.Back")
 
 a.back.factor1 = psych::alpha(UV[back.factor1]) #alpha = 0.77
 a.back.factor2 = psych::alpha(UV[back.factor2]) #alpha = 0.73
 a.back.factor3 = psych::alpha(UV[back.factor3],check.keys=TRUE) #alpha = 0.7
 ```
 
+Removed E1 for cross-loading in machine-like condition. Removed A1 for not loading on any factor in the machine-like condition and for cross-loading in the human-like condition. Removed UV3 and IS4 for cross-loading in the human condition. Removed HL1 because it is not easily interpretable as an item for any of the factors.
 
 I removed "Does the robot have feelings?" from analysis, because it often resulted in cross loading and created uninterpretable results. 
 
 After considering Kaiser’s criterion (eigenvalues ≥ 1), a scree plot, and model fit indices, the results suggested a three factor model. According to Kaiser's criterion, 3 factors were recommended. The chi-square test of model fit supported the three factor solution, but not 2, $\chi^2$(`r efa.QB$dof`) = `r round(efa.QB$STATISTIC,2)`, $p =$ `r round(efa.QB$PVAL,2)`. The chi-square test is suitable for this sample of `r sum(UV$Order==1)` (less than 500).
 
-This left three factors: Factor 1 (think, moral, choose, aware) with loadings greater than 0.5, $\alpha =$ `r round(a.back.factor1$total[1],2)`, Factor 2 (pain, fear, hunger) with loadings greater than 0.4, $\alpha =$ `r round(a.back.factor2$total[1],2)`, and Factor 3 (creepy, weird, play(reverse coded)) with loadings greater than 0.75,  $\alpha =$ `r round(a.back.factor3$total[1],2)`.
+This left three factors: Factor 1 (think, moral, choose) with loadings greater than 0.5, $\alpha =$ `r round(a.back.factor1$total[1],2)`, Factor 2 (pain, fear, hunger) with loadings greater than 0.4, $\alpha =$ `r round(a.back.factor2$total[1],2)`, and Factor 3 (creepy, weird) with loadings greater than 0.75,  $\alpha =$ `r round(a.back.factor3$total[1],2)`.
 
 ##Exploratory factor analysis for Kaspar Front
 Factor analysis with nonorthogonal promax rotation
 
-```{r EFA_qFront}
-Q.Front <- c("UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front")
+```{r EFA_Front_2}
+Q.Front <- c("UV1.Front","UV2.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front")
 
-efa.QF <- factanal(na.omit(UV[Q.Front]), 6, rotation="promax",scores="regression")
+efa.QF <- factanal(na.omit(UV[Q.Front]), 4, rotation="promax",scores="regression")
 screeplot.factanal(efa.QF)
 
 efa.QF <- factanal(na.omit(UV[Q.Front]), 3, rotation="promax",scores="regression")
 print(efa.QF, digits=2, cutoff=.3, sort=TRUE)
 
 front.factor1 <- c("IS3.Front","IS5.Front","IS6.Front") #pain,fear,hunger 
-front.factor2 <- c("IS1.Front","A2.Front", "IS2.Front", "E1.Front") #think, moral, choose
+front.factor2 <- c("IS1.Front","A2.Front", "IS2.Front") #think, moral, choose
 front.factor3 <- c("UV1.Front","UV2.Front")
 
 a.front.factor1 = psych::alpha(UV[front.factor1]) #alpha = .86
@@ -261,9 +285,10 @@ pander(t.test(UV[which(UV$AgeGroup==3),]$UVindex.Back,UV[which(UV$AgeGroup==3),]
 pander(t.test(UV[which(UV$AgeGroup==4),]$UVindex.Back,UV[which(UV$AgeGroup==4),]$UVindex.Front))
 ```
 
+
 ```{r Agency_Index}
-UV$Agency.Back = (UV$IS1.Back+UV$IS2.Back+UV$A2.Back+UV$E1.Back)/4
-UV$Agency.Front = (UV$IS1.Front+UV$IS2.Front+UV$A2.Front+UV$E1.Front)/4
+UV$Agency.Back = (UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/3
+UV$Agency.Front = (UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/3
 
 barByAge(UV$Agency.Back,UV$Agency.Front,UV, "Agency Composite")
 pander(t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$Agency.Front))
@@ -278,28 +303,21 @@ barByAge(UV$Exp.Back,UV$Exp.Front,UV, "Experience Composite")
 ```
 
 ```{r correlations}
-plot(jitter(UV$UVindex.Back),jitter(UV$Agency.Back))
-pander(cor.test(UV$UVindex.Back,UV$Agency.Back))
+cor.test(UV$UVindex.Back,UV$Agency.Back)
 
-plot(jitter(UV$UVindex.Front),jitter(UV$Agency.Front))
-pander(cor.test(UV$UVindex.Front,UV$Agency.Front))
+cor.test(UV$UVindex.Front,UV$Agency.Front)
 
-plot(jitter(UV$UVindex.Back),jitter(UV$Exp.Back))
-pander(cor.test(UV$UVindex.Back,UV$Exp.Back))
+cor.test(UV$UVindex.Back,UV$Exp.Back)
 
-plot(jitter(UV$UVindex.Front),jitter(UV$Exp.Front))
-pander(cor.test(UV$UVindex.Front,UV$Exp.Front))
+cor.test(UV$UVindex.Front,UV$Exp.Front)
 
-plot(jitter(UV$Agency.Back),jitter(UV$Exp.Back))
-pander(cor.test(UV$Agency.Back,UV$Exp.Back))
-
-plot(jitter(UV$Agency.Front),jitter(UV$Exp.Front))
-pander(.)
+cor.test(UV$Agency.Back,UV$Exp.Back)
 ```
 
 ```{r regressions}
 UVindex = data.frame(SubID=c(UV$SubID, UV$SubID), 
                      Age=c(UV$Age,UV$Age), 
+                     AgeYears=c(UV$AgeYears,UV$AgeYears),
                      AgeGroup=c(UV$AgeGroup,UV$AgeGroup), 
                      Robot=c(rep('Kaspar Back',dim(UV)[1]),rep('Kaspar Front',dim(UV)[1])), 
                      UVindex=c(UV$UVindex.Back,UV$UVindex.Front), 
@@ -312,14 +330,47 @@ UVindex$Agency.cent = scale(UVindex$Agency,center=T,scale=T)
 UVindex$Exp.cent = scale(UVindex$Experience,center=T,scale=T)
   
 UVindex.old = UVindex[which(UVindex$AgeGroup>2),]
+UVindex.young = UVindex[which(UVindex$AgeGroup<3),]
 
 
-pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot,data=UVindex)))
-pander(summary(glm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Robot+Exp.cent*Robot,data=UVindex)))
+pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,data=UVindex)))
+pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,data=UVindex.old)))
 
-pander(summary(glm(UVindex~Agency+Experience+Age+Robot,data=UVindex.old)))
+plot(jitter(UVindex$UVindex),(UVindex$Agency))
+abline(lm(UVindex$UVindex~UVindex$Agency))
+```
 
+```{r scatter_UV}
+KasparFront = UVindex[ which( UVindex$Robot=="Kaspar Front"), ]
+KasparBack = UVindex[ which( UVindex$Robot=="Kaspar Back"), ]
 
-pander(summary(glm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot,data=UVindex.old)))
-pander(summary(glm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Robot+Exp.cent*Robot,data=UVindex.old)))
+plot.new()
+par(mar=c(5,5,5,5)+0.1)
+plot(KasparFront$AgeYears, jitter(KasparFront$UVindex), main = "Uncanny Index", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = ageAxis)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(KasparFront$AgeYears, jitter(KasparFront$UVindex), col = humanColor)
+axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+abline(lm(KasparFront$UVindex~KasparFront$AgeYears), col = humanColor, lwd = lineWidth)
+# fit <- lm(KasparFront$UVindex~KasparFront$AgeYears)
+# a <- summary(fit)$coefficient['(Intercept)','Estimate']
+# b <- summary(fit)$coefficient['KasparFront$AgeYears','Estimate']
+# r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+# f <- summary(fit)$fstatistic
+# p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+# p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+# text(((2.5-a)/b)-8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = responseAxis)
+
+points(KasparBack$AgeYears, jitter(KasparBack$UVindex), col = machineColor)
+abline(lm(KasparBack$UVindex~KasparBack$AgeYears), col = machineColor, lwd = lineWidth)
+#fit <- lm(KasparBack$UVindex~KasparBack$AgeYears)
+#a <- summary(fit)$coefficient['(Intercept)','Estimate']
+#b <- summary(fit)$coefficient['KasparBack$AgeYears','Estimate']
+# r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+# f <- summary(fit)$fstatistic
+# p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+# p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+# text(((2.5-a)/b)+8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = machineColor, cex = responseAxis)
+
+legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
 ```

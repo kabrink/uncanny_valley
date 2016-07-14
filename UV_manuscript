@@ -37,24 +37,31 @@ knitr::opts_chunk$set(fig.path='Manuscript Figures/', dev=c('png','postscript'),
 ```
 
 ```{r load_libraries}
-library(lubridate)
-library(Hmisc)
-library(plyr)
-library(pander)
+library(lubridate) #for calculating ages
+library(Hmisc) #for importing SPSS
+library(plyr) #for joining data frames
+library(pander) #for displaying tables
 ```
 
 ```{r standard_error}
+#calculates standard error (automatically removes missing values)
 s.error <- function(x) sd(x,na.rm=TRUE)/sqrt(length(x))
 ```
 
 ```{r safe_ifelse}
+#when using the original ifelse statement, the class of the variable contained in the yes/no statements is not protected. if a variable is contained in the yes/no statement, it may be converted to an illegible numerical class. "ifelse makes factors lose their levels and Dates lose their class and only their mode (numeric) is restored"
+
+#this safe.ifelse function came from: http://stackoverflow.com/questions/6668963/how-to-prevent-ifelse-from-turning-date-objects-into-numeric-objects
+
+#it protects both date columns and factor columns
+
 safe.ifelse <- function(cond, yes, no) {
       class.y <- class(yes)
-      if ("factor" %in% class.y) {  # Note the small condition change here
+      if ("factor" %in% class.y) {  
         levels.y = levels(yes)
       }
       X <- ifelse(cond,yes,no)
-      if ("factor" %in% class.y) {  # Note the small condition change here
+      if ("factor" %in% class.y) {  
         X = as.factor(X)
         levels(X) = levels.y
       } else {
@@ -65,6 +72,7 @@ safe.ifelse <- function(cond, yes, no) {
 ```
 
 ```{r screeplot_factanal}
+#http://www.stat.cmu.edu/~cshalizi/350/2008/lectures/14/lecture-14.pdf
 screeplot.factanal <- function(fa.fit,xlab="factor",ylab="eigenvalue",...) {
 	# sum-of-squares function for repeated application
 	sosq <- function(v) {sum(v^2)}
@@ -79,6 +87,8 @@ screeplot.factanal <- function(fa.fit,xlab="factor",ylab="eigenvalue",...) {
 
 ```{r part_cor_function, echo = FALSE}
 #runs a partial correlation that can handle missing values
+#I think I made this. I'm sure pieces came from all over.
+
 part.cor <- function(x, y, z){
   xres <- residuals(lm(x ~ z, na.action = na.exclude))
   yres <- residuals(lm(y ~ z, na.action = na.exclude)) 
@@ -90,15 +100,17 @@ part.cor <- function(x, y, z){
   m$p.value = result$p.value
   return(m)
 }
+```
 
 ```{r plot_settings}
-responseAxis <- 1.3
+#change plot aesthetics here
+responseAxis <- 1.3 #
 responseAxis2 <- 1.9
-ageAxis <- 2
-humanColor = 'red'
-machineColor = 'darkblue'
-plotFill = 'white'
-titleSize = 3
+ageAxis <- 2 
+humanColor = 'red' #color of bars and points for human-like robot
+machineColor = 'darkblue' #color of bars and points for machine-like robot
+plotFill = 'white' #background of plot
+titleSize = 3 #size of main label
 titleSizeSmall = 2
 titleSizeExtraSmall = 1.5
 font = "Georgia"
@@ -106,75 +118,93 @@ lineWidth = 5
 ```
 
 ```{r barByAge_plot_function}
-barByAge <-function(v.back,v.front,data,title){
-means.back <- aggregate(v.back~AgeGroup,data,mean)
-means.front <- aggregate(v.front~AgeGroup,data,mean)
+#because I will be repeatedly creating a plot for multiple variables looking at the effect of robot and age, here is a function for it.
+#the function creates a barplot with age on the x axis and response to an interview question on the y-axis. 
+#the bars are then split into human-like and machine-like robot for each age group
 
-se.back <- aggregate(v.back~AgeGroup,data,s.error)
-se.front <- aggregate(v.front~AgeGroup,data,s.error)
+barByAge <-function(machineVariable=v.back,humanVariable=v.front,data=data,plotTitle=title){
+means.back <- aggregate(v.back~AgeGroup,data,mean) #find means of var for each age group for the machine-like robot
+means.front <- aggregate(v.front~AgeGroup,data,mean) #find means of var for each age group for the human-like robot
 
-means.mat<-matrix(c(means.back$v.back,means.front$v.front),ncol=4,byrow=T)-1
-se.mat<-matrix(c(se.back$v.back,se.front$v.front),ncol=4,byrow=FALSE)
+se.back <- aggregate(v.back~AgeGroup,data,s.error) #find standard error of var for each age group for the machine-like robot
+se.front <- aggregate(v.front~AgeGroup,data,s.error) #find standard error of var for each age group for the human-like robot
 
-colnames(means.mat) <- c('<6','6-9','9-12','>12')
-rownames(means.mat) <- c('Machine-like','Human-like')
+means.mat<-matrix(c(means.back$v.back,means.front$v.front),ncol=4,byrow=T)-1 #combine means into one matrix
+se.mat<-matrix(c(se.back$v.back,se.front$v.front),ncol=4,byrow=FALSE) #combine se into one matrix
+
+colnames(means.mat) <- c('<6','6-9','9-12','>12') #label the columns by age group
+rownames(means.mat) <- c('Machine-like','Human-like') #label the rows by robot type
 #means <- as.table(means)
-means.matR <- round(means.mat,2)
-g.range = range(0,ceiling(max(means.mat)+1))
+means.matR <- round(means.mat,2) #produce rounded values of the matrix for displaying on the plot
+g.range = range(0,ceiling(max(means.mat)+1)) #determine y-axis range
 
 plot.new()
 barCenters <- barplot(means.mat, col=c(machineColor,humanColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, cex.main = 2.5)
-axis(2, at = c(0:3), labels = c('', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
-arrows(barCenters, means.mat-se.mat, barCenters, means.mat+se.mat, lwd = 3, length=0.05, angle=90, code=3)
-text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis)
+axis(2, at = c(0:3), labels = c('', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis) #change y axis labels
+arrows(barCenters, means.mat-se.mat, barCenters, means.mat+se.mat, lwd = 3, length=0.05, angle=90, code=3) #add +/- 1 standard error bars
+text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) #print mean values above each bar
 }
 ```
 
 
 ```{r load_file}
 #library Hmisc
+#load SPSS data file
 filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - Data.sav"
-UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F)
+UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F) #label DOB and DOT as date variables and import numerical values not string values for variables
 ```
 
 ```{r formatting}
 #library plyr
-UV.original <- UV.original[UV.original$Order==1|UV.original$Order==2|is.na(UV.original$Order),]
-UV.original = UV.original[which(!is.na(UV.original$SubID)),]
+UV.original <- UV.original[UV.original$Order==1|UV.original$Order==2|is.na(UV.original$Order),] #exclude orders 3 and where both conditions were presented together (leaving only between subjects for analysis)
+UV.original = UV.original[which(!is.na(UV.original$SubID)),] #remove empty observations
 
-UV.original$Age = NULL
-UV.original$AgeGroup = NULL
-UV.original$AgeYear = NULL
-UV.original$COMME0 = NULL
-names(UV.original)[names(UV.original) == 'VAR00001'] <- 'Comments'
-names(UV.original)[names(UV.original) == 'PA11'] <- 'PQ11'
+UV.original$Age = NULL #remove experiementer entered age (will calculate later)
+UV.original$AgeGroup = NULL #remove experiementer entered age (will calculate later)
+UV.original$AgeYear = NULL #remove experiementer entered age (will calculate later)
+UV.original$COMME0 = NULL #remove empty varaible
+names(UV.original)[names(UV.original) == 'VAR00001'] <- 'Comments' #name unnamed variable
+names(UV.original)[names(UV.original) == 'PA11'] <- 'PQ11' #correct name of variable
 
-UV.Nao <- UV.original[UV.original$Condition==3,]
-UV.Front <- UV.original[UV.original$Condition==2,]
-UV.Back <- UV.original[UV.original$Condition==1,]
+#original data set was created in long format, the following code converts it to short format
+#each participant had an observation for either the machine-like robot or human-like robot, then they had a set of answers about Nao. This makes sure all answers about robots are included in one observation.
 
-UV.Nao = UV.Nao[which(!is.na(UV.Nao$SubID)),]
-UV.Front = UV.Front[which(!is.na(UV.Front$SubID)),]
-UV.Back = UV.Back[which(!is.na(UV.Back$SubID)),]
+UV.Nao <- UV.original[UV.original$Condition==3,] #separate answers about Nao robot into data frame UV.Nao
+UV.Front <- UV.original[UV.original$Condition==2,] #separate answers about Human-like robot into data frame UV.Front
+UV.Back <- UV.original[UV.original$Condition==1,] #separate answers about Machine-like robot into data frame UV.Back
 
+UV.Nao = UV.Nao[which(!is.na(UV.Nao$SubID)),] #remove empty observations (that would have somehow magically slipped by when I removed them before)
+UV.Front = UV.Front[which(!is.na(UV.Front$SubID)),] #remove empty observations
+UV.Back = UV.Back[which(!is.na(UV.Back$SubID)),] #remove empty observations
+
+#rename variables for consistency and differentiation for when they are joined back together
 names(UV.Nao) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
 
+#the variables below are typically empty for Nao and not robot specific (they are a parent survey about experience with robots and technology), they can be copied over from UV.Front and UV.Back where they are always filled in
+#if these variables are left in UV.Nao they cause problems with joins later
+#the same subid may have empty data for these variables for the Nao dataset but not the UV.Front or UV.Back datasets, which causes these variables to be incorrectly copied over during the join
 UV.Nao=UV.Nao[,!(names(UV.Nao) %in% c("Sex","DOB","DOT","Order","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments"))]
 
+#rename variables for consistency and differentiation for when they are joined back together
 names(UV.Front) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+#rename variables for consistency and differentiation for when they are joined back together
 names(UV.Back) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
 
+#condition is no longer needed (this information is kept in the variable names)
 UV.Nao$Condition = NULL
 UV.Back$Condition = NULL
 UV.Front$Condition = NULL
 
-#This is not working correctly
-UV.NB <- join( UV.Back,UV.Nao )
-UV.NF <- join( UV.Front,UV.Nao )
-UV.Total <- merge( UV.NB,UV.NF,by="SubID",all.x=T,all.y=T )
+UV.NB <- join( UV.Back,UV.Nao ) #combine observations about Nao and observations about the machine-like robot by subject ID
+UV.NF <- join( UV.Front,UV.Nao ) #combine observations about Nao and observations about the machine-like robot by subject ID
+UV.Total <- merge( UV.NB,UV.NF,by="SubID",all.x=T,all.y=T ) #put all the observations together into one data frame
 
+
+#copy over variables that do not have a ".x" or ".y" on their name
 UV = UV.Total[c("SubID","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")]
 
+#copy over variables with a ".x" or ".y" but remove that from the end of the variable name
 for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")) {
   
   UV[[var]] = safe.ifelse(is.na(UV.Total[[paste(var,".x",sep="")]]),UV.Total[[paste(var,".y",sep="")]],UV.Total[[paste(var,".x",sep="")]])
@@ -185,13 +215,16 @@ for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao",
 
 ```{r calculate_variables}
 #library lubridate
+#calculate age of participant in months
 UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interval(UV$DOB, UV$DOT))) + (day(as.period(interval(UV$DOB, UV$DOT)))/30)
+
+#calculate age of participant in years
 UV$AgeYears = UV$Age/12
+
+#separate into four different age groups
 UV$AgeGroup = factor(ifelse(UV$Age<=72, "1", ifelse(UV$Age<=108, "2", ifelse(UV$Age<=144, "3", "4"))))
 UV = UV[which(UV$AgeYears>1),]
-isGirl <- UV$Sex == "1"
-#UV$UV_index = (UV$UV1 + UV$UV2) / 2
-#UV$CondByAge = UV$Condition * UV$Age
+
 ```
 
 `r dim(UV)[1]` children (`r sum(UV$Sex == "1")` females), `r round(min(UV$AgeYears),0)` to `r round(max(UV$AgeYears),0)` years old (M = `r round(mean(UV$AgeYears),2)`) were recruited from a local Natural History Museum. The experimenter randomly assigned children to watch one of two videos: a video of a machine-like robot or a video of a human-like one. Children then answered a series of questions concerning their beliefs about the robot’s abilities. In the machine-like robot condition `r sum(UV$Order==1)` children watched 24 s of the robot Kaspar filmed from behind, so that only its wiring and electrical components could be seen (Fig. 1). In the human-like robot condition`r sum(UV$Order==2)` children watched 24 s of video of the robot Kaspar filmed from the front, where its humanlike face was clearly visible (Fig. 1). 
@@ -199,42 +232,55 @@ isGirl <- UV$Sex == "1"
 ##Exploratory factor analysis for Kaspar Back
 Factor analysis with nonorthogonal promax rotation
 ```{r EFA_Back_1}
+#factor analysis with all variables for machine-like robot
 Q.Back <- c("UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back", "IS5.Back","IS6.Back","E1.Back","HL1.Back")
 
+#remove variables incrementally that do not load or cross load and run analysis again
 #Q.Back <- c("UV1.Back","UV2.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back", "IS5.Back","IS6.Back","HL1.Back")
 
+#create scree plot
 efa.QB <- factanal(na.omit(UV[Q.Back]), 4, rotation="promax",scores="regression")
 screeplot.factanal(efa.QB)
 
+#display factor loadings
 efa.QB <- factanal(na.omit(UV[Q.Back]), 3, rotation="promax",scores="regression")
 print(efa.QB, digits=2, cutoff=.3, sort=TRUE)
 ```
 
 ```{r EFA_Front_1}
+#factor analysis with all variables for human-like robot
 Q.Front <- c("UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front", "IS5.Front","IS6.Front","E1.Front","HL1.Front")
 
+#remove variables incrementally that do not load or cross load and run analysis again
 #Q.Front <- c("UV1.Front","UV2.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front","HL1.Front")
 
+#create scree plot
 efa.QF <- factanal(na.omit(UV[Q.Front]), 4, rotation="promax",scores="regression")
 screeplot.factanal(efa.QF)
 
+#display factor loadings
 efa.QF <- factanal(na.omit(UV[Q.Front]), 3, rotation="promax",scores="regression")
 print(efa.QF, digits=2, cutoff=.3, sort=TRUE)
 ```
 
 ```{r EFA_Back_2}
+#Run factor analysis with final set of variables
 Q.Back <- c("UV1.Back","UV2.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS5.Back","IS6.Back")
 
+#create scree plot
 efa.QB <- factanal(na.omit(UV[Q.Back]), 4, rotation="promax",scores="regression")
 screeplot.factanal(efa.QB)
 
+#display factor loadings
 efa.QB <- factanal(na.omit(UV[Q.Back]), 3, rotation="promax",scores="regression")
 print(efa.QB, digits=2, cutoff=.3, sort=TRUE)
 
+#create three factors
 back.factor1 <- c("IS1.Back","IS2.Back","A2.Back") #think, moral, choose 
 back.factor2 <- c("IS3.Back","IS5.Back","IS6.Back") #pain,fear,hunger 
 back.factor3 <- c("UV1.Back","UV2.Back")
 
+#calculate alpha for each factor
 a.back.factor1 = psych::alpha(UV[back.factor1]) #alpha = 0.77
 a.back.factor2 = psych::alpha(UV[back.factor2]) #alpha = 0.73
 a.back.factor3 = psych::alpha(UV[back.factor3],check.keys=TRUE) #alpha = 0.7
@@ -252,18 +298,23 @@ This left three factors: Factor 1 (think, moral, choose) with loadings greater t
 Factor analysis with nonorthogonal promax rotation
 
 ```{r EFA_Front_2}
+#Run factor analysis with final set of variables
 Q.Front <- c("UV1.Front","UV2.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front")
 
+#create scree plot
 efa.QF <- factanal(na.omit(UV[Q.Front]), 4, rotation="promax",scores="regression")
 screeplot.factanal(efa.QF)
 
+#display factor loadings
 efa.QF <- factanal(na.omit(UV[Q.Front]), 3, rotation="promax",scores="regression")
 print(efa.QF, digits=2, cutoff=.3, sort=TRUE)
 
+#create recommended factors
 front.factor1 <- c("IS3.Front","IS5.Front","IS6.Front") #pain,fear,hunger 
 front.factor2 <- c("IS1.Front","A2.Front", "IS2.Front") #think, moral, choose
 front.factor3 <- c("UV1.Front","UV2.Front")
 
+#calculate alpha for each factor
 a.front.factor1 = psych::alpha(UV[front.factor1]) #alpha = .86
 a.front.factor2 = psych::alpha(UV[front.factor2]) #alpha = .66
 a.front.factor3 = psych::alpha(UV[front.factor3]) #alpha = .75
@@ -274,8 +325,9 @@ After considering Kaiser’s criterion (eigenvalues ≥ 1), a scree plot, and mo
 This left three factors: Factor 1 (pain, fear, hunger) with loadings greater than 0.75, $\alpha =$ `r round(a.front.factor1$total[1],2)`, Factor 2 (think, choose, moral, aware) with loadings greater than 0.4, $\alpha =$ `r round(a.front.factor2$total[1],2)`, and Factor 3 (creepy, weird) with loadings greater than 0.75,  $\alpha =$ `r round(a.front.factor3$total[1],2)`.
 
 ```{r Uncanny_Index}
-UV$UVindex.Back = (UV$UV1.Back+UV$UV2.Back)/2
-UV$UVindex.Front = (UV$UV1.Front+UV$UV2.Front)/2
+#calculate creepiness factor for each robot
+UV$UVindex.Back = (UV$UV1.Back+UV$UV2.Back)/2 
+UV$UVindex.Front = (UV$UV1.Front+UV$UV2.Front)/2 
 
 barByAge(UV$UVindex.Back,UV$UVindex.Front,UV, "Uncanny Index")
 
@@ -287,6 +339,7 @@ pander(t.test(UV[which(UV$AgeGroup==4),]$UVindex.Back,UV[which(UV$AgeGroup==4),]
 
 
 ```{r Agency_Index}
+#calculate agency factor for each robot (perceptions of agency)
 UV$Agency.Back = (UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/3
 UV$Agency.Front = (UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/3
 
@@ -296,6 +349,7 @@ pander(t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$
 ```
 
 ```{r Experience_Index}
+#calculate experience factor for each robot (perceptions of experience)
 UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back)/3
 UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front)/3
 
@@ -303,6 +357,7 @@ barByAge(UV$Exp.Back,UV$Exp.Front,UV, "Experience Composite")
 ```
 
 ```{r correlations}
+#assess correlations between the factors
 cor.test(UV$UVindex.Back,UV$Agency.Back)
 
 cor.test(UV$UVindex.Front,UV$Agency.Front)
@@ -315,6 +370,7 @@ cor.test(UV$Agency.Back,UV$Exp.Back)
 ```
 
 ```{r regressions}
+#convert data back to long form *I know, shut up* so that we can have one creepiness factor and test the effect of robot and agency and experience factor in one analysis
 UVindex = data.frame(SubID=c(UV$SubID, UV$SubID), 
                      Age=c(UV$Age,UV$Age), 
                      AgeYears=c(UV$AgeYears,UV$AgeYears),
@@ -324,18 +380,24 @@ UVindex = data.frame(SubID=c(UV$SubID, UV$SubID),
                      Agency=c(UV$Agency.Back,UV$Agency.Front), 
                      Experience=c(UV$Exp.Back,UV$Exp.Front)) 
 
+#remove participants with no creepiness factor
 UVindex=UVindex[which(!is.na(UVindex$UVindex)),]
+
+#because agency and experience index are correlated, center them for regression analyses to decrease the problem of multicollinearity
 UVindex$UVindex.cent = scale(UVindex$UVindex,center=T,scale=T)
 UVindex$Agency.cent = scale(UVindex$Agency,center=T,scale=T)
 UVindex$Exp.cent = scale(UVindex$Experience,center=T,scale=T)
   
+#divide participants into groups based on when the Uncanny Valley effect appears (groups 3 & 4 show effect, groups 1 & 2 do not)
 UVindex.old = UVindex[which(UVindex$AgeGroup>2),]
 UVindex.young = UVindex[which(UVindex$AgeGroup<3),]
 
-
+#regression analyses to predict creepiness factor
 pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,data=UVindex)))
+#look at whether different predictors are significant for the older children where the uncanny effect exists.
 pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,data=UVindex.old)))
 
+#look at direction of effect of agency on UVindex in plot
 plot(jitter(UVindex$UVindex),(UVindex$Agency))
 abline(lm(UVindex$UVindex~UVindex$Agency))
 ```
@@ -344,6 +406,7 @@ abline(lm(UVindex$UVindex~UVindex$Agency))
 KasparFront = UVindex[ which( UVindex$Robot=="Kaspar Front"), ]
 KasparBack = UVindex[ which( UVindex$Robot=="Kaspar Back"), ]
 
+#create scatter plot that looks at effect of age and robot type on creepiness factor
 plot.new()
 par(mar=c(5,5,5,5)+0.1)
 plot(KasparFront$AgeYears, jitter(KasparFront$UVindex), main = "Uncanny Index", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = ageAxis)

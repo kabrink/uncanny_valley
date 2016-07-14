@@ -122,7 +122,7 @@ lineWidth = 5
 #the function creates a barplot with age on the x axis and response to an interview question on the y-axis. 
 #the bars are then split into human-like and machine-like robot for each age group
 
-barByAge <-function(machineVariable=v.back,humanVariable=v.front,data=data,plotTitle=title){
+barByAge <-function(v.back,v.front,data,title){
 means.back <- aggregate(v.back~AgeGroup,data,mean) #find means of var for each age group for the machine-like robot
 means.front <- aggregate(v.front~AgeGroup,data,mean) #find means of var for each age group for the human-like robot
 

@@ -109,6 +109,7 @@ responseAxis2 <- 1.9
 ageAxis <- 2 
 humanColor = 'red' #color of bars and points for human-like robot
 machineColor = 'darkblue' #color of bars and points for machine-like robot
+naoColor = 'yellow' #color of bars and points for Nao
 plotFill = 'white' #background of plot
 titleSize = 3 #size of main label
 titleSizeSmall = 2
@@ -146,6 +147,35 @@ text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) #p
 }
 ```
 
+```{r barByAge_3robots_function}
+#because I will be repeatedly creating a plot for multiple variables looking at the effect of robot and age, here is a function for it.
+#the function creates a barplot with age on the x axis and response to an interview question on the y-axis. 
+#the bars are then split into human-like and machine-like robot for each age group
+barByAge_3robots <-function(v.back,v.front,v.nao,data,title){
+means.back <- aggregate(v.back~AgeGroup,data,mean) #find means of var for each age group for the machine-like robot
+means.front <- aggregate(v.front~AgeGroup,data,mean) #find means of var for each age group for the human-like robot
+means.nao <- aggregate(v.nao~AgeGroup,data,mean) #find means of var for each age group for Nao
+
+se.back <- aggregate(v.back~AgeGroup,data,s.error) #find standard error of var for each age group for the machine-like robot
+se.front <- aggregate(v.front~AgeGroup,data,s.error) #find standard error of var for each age group for the human-like robot
+se.nao <- aggregate(v.nao ~AgeGroup,data,s.error) #find standard error of var for each age group for the Nao
+
+means.mat<-matrix(c(means.back$v.back,means.nao$v.nao,means.front$v.front),ncol=4,byrow=T)-1 #combine means into one matrix
+se.mat<-matrix(c(se.back$v.back,se.nao$v.nao,se.front$v.front),ncol=4,byrow=FALSE) #combine se into one matrix
+
+colnames(means.mat) <- c('<6','6-9','9-12','>12') #label the columns by age group
+rownames(means.mat) <- c('Machine-like','Nao','Human-like') #label the rows by robot type
+#means <- as.table(means)
+means.matR <- round(means.mat,2) #produce rounded values of the matrix for displaying on the plot
+g.range = range(0,ceiling(max(means.mat)+1)) #determine y-axis range
+
+plot.new()
+barCenters <- barplot(means.mat, col=c(machineColor,naoColor,humanColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, cex.main = 2.5)
+axis(2, at = c(0:3), labels = c('', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis) #change y axis labels
+arrows(barCenters, means.mat-se.mat, barCenters, means.mat+se.mat, lwd = 3, length=0.05, angle=90, code=3) #add +/- 1 standard error bars
+text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) #print mean values above each bar
+}
+```
 
 ```{r load_file}
 #library Hmisc
@@ -320,6 +350,10 @@ a.front.factor2 = psych::alpha(UV[front.factor2]) #alpha = .66
 a.front.factor3 = psych::alpha(UV[front.factor3]) #alpha = .75
 ```
 
+```{r efa_table}
+
+```
+
 After considering Kaiser’s criterion (eigenvalues ≥ 1), a scree plot, and model fit indices, the results suggested a three factor model. According to Kaiser's criterion, 5 factors are recommended. However, the fourth and fifth factors are not interpretable and only have one item. Therefore, we assessed three factors. The chi-square test of model fit supported the three factor solution, but not 2, $\chi^2$(`r efa.QF$dof`) = `r round(efa.QF$STATISTIC,2)`, $p =$ `r round(efa.QF$PVAL,2)`. The chi-square test is suitable for this sample of `r sum(UV$Order==2)` (less than 500).
 
 This left three factors: Factor 1 (pain, fear, hunger) with loadings greater than 0.75, $\alpha =$ `r round(a.front.factor1$total[1],2)`, Factor 2 (think, choose, moral, aware) with loadings greater than 0.4, $\alpha =$ `r round(a.front.factor2$total[1],2)`, and Factor 3 (creepy, weird) with loadings greater than 0.75,  $\alpha =$ `r round(a.front.factor3$total[1],2)`.
@@ -328,9 +362,13 @@ This left three factors: Factor 1 (pain, fear, hunger) with loadings greater tha
 #calculate creepiness factor for each robot
 UV$UVindex.Back = (UV$UV1.Back+UV$UV2.Back)/2 
 UV$UVindex.Front = (UV$UV1.Front+UV$UV2.Front)/2 
+UV$UVindex.Nao = (UV$UV1.Nao+UV$UV2.Nao)/2
 
+
+pander(xtabs(~UV$UV1.Nao+UV$AgeGroup))
 barByAge(UV$UVindex.Back,UV$UVindex.Front,UV, "Uncanny Index")
-
+barByAge_3robots(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanny Index")
+  
 pander(t.test(UV[which(UV$AgeGroup==1),]$UVindex.Back,UV[which(UV$AgeGroup==1),]$UVindex.Front))
 pander(t.test(UV[which(UV$AgeGroup==2),]$UVindex.Back,UV[which(UV$AgeGroup==2),]$UVindex.Front))
 pander(t.test(UV[which(UV$AgeGroup==3),]$UVindex.Back,UV[which(UV$AgeGroup==3),]$UVindex.Front))
@@ -388,6 +426,9 @@ UVindex$UVindex.cent = scale(UVindex$UVindex,center=T,scale=T)
 UVindex$Agency.cent = scale(UVindex$Agency,center=T,scale=T)
 UVindex$Exp.cent = scale(UVindex$Experience,center=T,scale=T)
   
+pander(summary(lm(Agency~Age+Robot+Age*Robot,data=UVindex)))
+pander(summary(lm(Experience~Age+Robot+Age*Robot,data=UVindex)))
+
 #divide participants into groups based on when the Uncanny Valley effect appears (groups 3 & 4 show effect, groups 1 & 2 do not)
 UVindex.old = UVindex[which(UVindex$AgeGroup>2),]
 UVindex.young = UVindex[which(UVindex$AgeGroup<3),]

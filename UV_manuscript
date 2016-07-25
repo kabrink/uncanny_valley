@@ -133,7 +133,7 @@ se.front <- aggregate(v.front~AgeGroup,data,s.error) #find standard error of var
 means.mat<-matrix(c(means.back$v.back,means.front$v.front),ncol=4,byrow=T)-1 #combine means into one matrix
 se.mat<-matrix(c(se.back$v.back,se.front$v.front),ncol=4,byrow=FALSE) #combine se into one matrix
 
-colnames(means.mat) <- c('<6','6-9','9-12','>12') #label the columns by age group
+colnames(means.mat) <- c('3-5','6-8','9-11','12-17') #label the columns by age group
 rownames(means.mat) <- c('Machine-like','Human-like') #label the rows by robot type
 #means <- as.table(means)
 means.matR <- round(means.mat,2) #produce rounded values of the matrix for displaying on the plot
@@ -160,17 +160,17 @@ se.back <- aggregate(v.back~AgeGroup,data,s.error) #find standard error of var f
 se.front <- aggregate(v.front~AgeGroup,data,s.error) #find standard error of var for each age group for the human-like robot
 se.nao <- aggregate(v.nao ~AgeGroup,data,s.error) #find standard error of var for each age group for the Nao
 
-means.mat<-matrix(c(means.back$v.back,means.nao$v.nao,means.front$v.front),ncol=4,byrow=T)-1 #combine means into one matrix
-se.mat<-matrix(c(se.back$v.back,se.nao$v.nao,se.front$v.front),ncol=4,byrow=FALSE) #combine se into one matrix
+means.mat<-matrix(c(means.back$v.back,means.front$v.front,means.nao$v.nao),ncol=4,byrow=T)-1 #combine means into one matrix
+se.mat<-matrix(c(se.back$v.back,se.front$v.front,se.nao$v.nao),ncol=4,byrow=FALSE) #combine se into one matrix
 
 colnames(means.mat) <- c('3-5','6-8','9-11','12-17') #label the columns by age group
-rownames(means.mat) <- c('Machine-like','Nao','Human-like') #label the rows by robot type
+rownames(means.mat) <- c('Machine-like','Human-like','Nao') #label the rows by robot type
 #means <- as.table(means)
 means.matR <- round(means.mat,2) #produce rounded values of the matrix for displaying on the plot
 g.range = range(0,ceiling(max(means.mat)+1)) #determine y-axis range
 
 plot.new()
-barCenters <- barplot(means.mat, col=c(machineColor,naoColor,humanColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, cex.main = 2.5)
+barCenters <- barplot(means.mat, col=c(machineColor,humanColor,naoColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, cex.main = 2.5)
 axis(2, at = c(0:3), labels = c('', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis) #change y axis labels
 arrows(barCenters, means.mat-se.mat, barCenters, means.mat+se.mat, lwd = 3, length=0.05, angle=90, code=3) #add +/- 1 standard error bars
 text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) #print mean values above each bar
@@ -371,7 +371,6 @@ UV$UVindex.Back = (UV$UV1.Back+UV$UV2.Back)/2
 UV$UVindex.Front = (UV$UV1.Front+UV$UV2.Front)/2 
 UV$UVindex.Nao = (UV$UV1.Nao+UV$UV2.Nao)/2
 
-
 pander(xtabs(~UV$UV1.Nao+UV$AgeGroup))
 barByAge(UV$UVindex.Back,UV$UVindex.Front,UV, "Uncanny Index")
 barByAge_3robots(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanny Index")
@@ -388,7 +387,7 @@ pander(t.test(UV[which(UV$AgeGroup==4),]$UVindex.Back,UV[which(UV$AgeGroup==4),]
 UV$Agency.Back = (UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/3
 UV$Agency.Front = (UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/3
 
-barByAge(UV$Agency.Back,UV$Agency.Front,UV, "Agency Composite")
+barByAge(UV$Agency.Back,UV$Agency.Front,UV, "Perceptions of Agency Index")
 pander(t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$Agency.Front))
 
 ```
@@ -398,7 +397,7 @@ pander(t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$
 UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back)/3
 UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front)/3
 
-barByAge(UV$Exp.Back,UV$Exp.Front,UV, "Experience Composite")
+barByAge(UV$Exp.Back,UV$Exp.Front,UV, "Perceptions of Experience Index")
 ```
 
 ```{r correlations}

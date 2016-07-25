@@ -163,7 +163,7 @@ se.nao <- aggregate(v.nao ~AgeGroup,data,s.error) #find standard error of var fo
 means.mat<-matrix(c(means.back$v.back,means.nao$v.nao,means.front$v.front),ncol=4,byrow=T)-1 #combine means into one matrix
 se.mat<-matrix(c(se.back$v.back,se.nao$v.nao,se.front$v.front),ncol=4,byrow=FALSE) #combine se into one matrix
 
-colnames(means.mat) <- c('<6','6-9','9-12','>12') #label the columns by age group
+colnames(means.mat) <- c('3-5','6-8','9-11','12-17') #label the columns by age group
 rownames(means.mat) <- c('Machine-like','Nao','Human-like') #label the rows by robot type
 #means <- as.table(means)
 means.matR <- round(means.mat,2) #produce rounded values of the matrix for displaying on the plot
@@ -252,8 +252,15 @@ UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interv
 UV$AgeYears = UV$Age/12
 
 #separate into four different age groups
-UV$AgeGroup = factor(ifelse(UV$Age<=72, "1", ifelse(UV$Age<=108, "2", ifelse(UV$Age<=144, "3", "4"))))
+UV$AgeGroup = factor(ifelse(UV$Age<72, "1", ifelse(UV$Age<108, "2", ifelse(UV$Age<144, "3", "4"))))
 UV = UV[which(UV$AgeYears>1),]
+
+pander(table(UV$AgeGroup))
+pander(table(UV$AgeGroup,UV$Sex))
+pander(aggregate(UV$Age,list(UV$AgeGroup),mean))
+pander(aggregate(UV$Age,list(UV$AgeGroup),min))
+pander(aggregate(UV$Age,list(UV$AgeGroup),max))
+
 
 ```
 
@@ -435,6 +442,9 @@ UVindex.young = UVindex[which(UVindex$AgeGroup<3),]
 
 #regression analyses to predict creepiness factor
 pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,data=UVindex)))
+
+UVindex$Dissonance = scale(UVindex$Experience-UVindex$Agency,center=T,scale=T)
+pander(summary(lm(UVindex.cent~Dissonance+Age+Robot+Dissonance*Age+Robot*Age,data=UVindex)))
 #look at whether different predictors are significant for the older children where the uncanny effect exists.
 pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,data=UVindex.old)))
 

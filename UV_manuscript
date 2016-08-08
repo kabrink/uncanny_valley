@@ -140,8 +140,8 @@ means.matR <- round(means.mat,2) #produce rounded values of the matrix for displ
 g.range = range(0,ceiling(max(means.mat)+1)) #determine y-axis range
 
 plot.new()
-barCenters <- barplot(means.mat, col=c(machineColor,humanColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, cex.main = 2.5)
-axis(2, at = c(0:3), labels = c('', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis) #change y axis labels
+barCenters <- barplot(means.mat, col=c(machineColor,humanColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title,xlab="Age (years)", cex.main = 2.5, cex.lab = responseAxis, cex.axis = responseAxis)
+axis(2, at = c(0:3), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis) #change y axis labels
 arrows(barCenters, means.mat-se.mat, barCenters, means.mat+se.mat, lwd = 3, length=0.05, angle=90, code=3) #add +/- 1 standard error bars
 text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) #print mean values above each bar
 }
@@ -170,10 +170,10 @@ means.matR <- round(means.mat,2) #produce rounded values of the matrix for displ
 g.range = range(0,ceiling(max(means.mat)+1)) #determine y-axis range
 
 plot.new()
-barCenters <- barplot(means.mat, col=c(machineColor,humanColor,naoColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, cex.main = 2.5)
+barCenters <- barplot(means.mat, col=c(machineColor,humanColor,naoColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, xlab = "Age (years)", cex.main = 2.5, cex.lab = responseAxis, cex.axis = responseAxis)
 axis(2, at = c(0:3), labels = c('', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis) #change y axis labels
 arrows(barCenters, means.mat-se.mat, barCenters, means.mat+se.mat, lwd = 3, length=0.05, angle=90, code=3) #add +/- 1 standard error bars
-text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) #print mean values above each bar
+#text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) #print mean values above each bar
 }
 ```
 
@@ -372,7 +372,7 @@ UV$UVindex.Front = (UV$UV1.Front+UV$UV2.Front)/2
 UV$UVindex.Nao = (UV$UV1.Nao+UV$UV2.Nao)/2
 
 pander(xtabs(~UV$UV1.Nao+UV$AgeGroup))
-barByAge(UV$UVindex.Back,UV$UVindex.Front,UV, "Uncanny Index")
+barByAge(UV$UVindex.Back,UV$UVindex.Front,UV, "Reports of Creepiness")
 barByAge_3robots(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanny Index")
   
 pander(t.test(UV[which(UV$AgeGroup==1),]$UVindex.Back,UV[which(UV$AgeGroup==1),]$UVindex.Front))
@@ -387,7 +387,7 @@ pander(t.test(UV[which(UV$AgeGroup==4),]$UVindex.Back,UV[which(UV$AgeGroup==4),]
 UV$Agency.Back = (UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/3
 UV$Agency.Front = (UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/3
 
-barByAge(UV$Agency.Back,UV$Agency.Front,UV, "Perceptions of Agency Index")
+barByAge(UV$Agency.Back,UV$Agency.Front,UV, "Attributions of Agency")
 pander(t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$Agency.Front))
 
 ```
@@ -397,7 +397,7 @@ pander(t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$
 UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back)/3
 UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front)/3
 
-barByAge(UV$Exp.Back,UV$Exp.Front,UV, "Perceptions of Experience Index")
+barByAge(UV$Exp.Back,UV$Exp.Front,UV, "Perceptions of Experience")
 ```
 
 ```{r correlations}
@@ -431,7 +431,8 @@ UVindex=UVindex[which(!is.na(UVindex$UVindex)),]
 UVindex$UVindex.cent = scale(UVindex$UVindex,center=T,scale=T)
 UVindex$Agency.cent = scale(UVindex$Agency,center=T,scale=T)
 UVindex$Exp.cent = scale(UVindex$Experience,center=T,scale=T)
-  
+UVindex$Age.cent = scale(UVindex$Age,center=T,scale=T)
+
 pander(summary(lm(Agency~Age+Robot+Age*Robot,data=UVindex)))
 pander(summary(lm(Experience~Age+Robot+Age*Robot,data=UVindex)))
 
@@ -442,14 +443,14 @@ UVindex.young = UVindex[which(UVindex$AgeGroup<3),]
 #regression analyses to predict creepiness factor
 pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,data=UVindex)))
 
-UVindex$Dissonance = scale(UVindex$Experience-UVindex$Agency,center=T,scale=T)
-pander(summary(lm(UVindex.cent~Dissonance+Age+Robot+Dissonance*Age+Robot*Age,data=UVindex)))
+
 #look at whether different predictors are significant for the older children where the uncanny effect exists.
 pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,data=UVindex.old)))
 
 #look at direction of effect of agency on UVindex in plot
 plot(jitter(UVindex$UVindex),(UVindex$Agency))
 abline(lm(UVindex$UVindex~UVindex$Agency))
+
 ```
 
 ```{r scatter_UV}
@@ -459,11 +460,11 @@ KasparBack = UVindex[ which( UVindex$Robot=="Kaspar Back"), ]
 #create scatter plot that looks at effect of age and robot type on creepiness factor
 plot.new()
 par(mar=c(5,5,5,5)+0.1)
-plot(KasparFront$AgeYears, jitter(KasparFront$UVindex), main = "Uncanny Index", xlab = 'Age (years)', ylab = 'Response', yaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = ageAxis)
+plot(KasparFront$AgeYears, jitter(KasparFront$UVindex), main = "Reports of Creepiness", xlab = 'Age (years)', ylab="", yaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = responseAxis)
 u <- par("usr") 
 rect(u[1], u[3], u[2], u[4], col = plotFill)
 points(KasparFront$AgeYears, jitter(KasparFront$UVindex), col = humanColor)
-axis(2, at = c(1:4), labels = c('No', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+axis(2, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
 abline(lm(KasparFront$UVindex~KasparFront$AgeYears), col = humanColor, lwd = lineWidth)
 # fit <- lm(KasparFront$UVindex~KasparFront$AgeYears)
 # a <- summary(fit)$coefficient['(Intercept)','Estimate']
@@ -486,4 +487,76 @@ abline(lm(KasparBack$UVindex~KasparBack$AgeYears), col = machineColor, lwd = lin
 # text(((2.5-a)/b)+8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = machineColor, cex = responseAxis)
 
 legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+```
+
+```{r mediation}
+library(bda)
+#mediator variable: mv = expindex
+#ndependent variable: iv = robot
+#dependent variable: dv = uncanny index
+
+#what about children older than 12
+pander(mediation.test(mv=UVindex.old$Experience,iv=UVindex.old$Robot,dv=UVindex.old$UVindex), caption="Test of experience as a mediator with robot appearance as predictor for children older than 9")
+
+pander(mediation.test(mv=UVindex.old$Experience,iv=UVindex.old$Age,dv=UVindex.old$UVindex), caption="Test of experience as a mediator by Age for older kids")
+
+pander(mediation.test(mv=UVindex$Experience,iv=UVindex$Age,dv=UVindex$UVindex), caption="Test of experience as a mediator by Age for all kids")
+
+UVindex$Age.bin = ifelse(UVindex$AgeGroup<3,0,1)
+
+pander(mediation.test(mv=UVindex$Experience,iv=UVindex$Age.bin,dv=UVindex$UVindex), caption="Test of experience as a mediator by Age Group (<9) for all kids")
+
+pander(mediation.test(mv=UVindex$Experience,iv=UVindex$Robot,dv=UVindex$UVindex), caption="Test of experience as a mediator for all children with robot as predictor")
+
+UVindex = UVindex[which(!is.na(UVindex$Agency)),]
+pander(mediation.test(mv=UVindex$Agency,iv=UVindex$Robot,dv=UVindex$UVindex), caption="Test of Agency as a mediator for all children with robot as predictor")
+
+pander(mediation.test(mv=UVindex$Agency,iv=UVindex$Age,dv=UVindex$UVindex), caption="Test of Agency as a mediator for all children with age as predictor")
+
+#experience becomes more crucial for older kids, some kind of test to show this?
+#we have evidence that agency is a mediator for all kids
+```
+
+##Experience as a mediator for robot when controlling for age
+```{r stepwise_mediation_experience}
+#Find a mediation test, where experience mediates the effect of robot type on uncanny index while controlling for age.
+
+#http://davidakenny.net/cm/mediate.htm
+#Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
+
+pander(summary(lm(UVindex~Robot+Age.cent,data=UVindex)), caption="Step 1: Show that the causal variable is correlated with the outcome")
+
+#Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
+
+pander(summary(lm(Exp.cent~Robot+Age.cent,data=UVindex)), caption="Step 2: Show that the causal variable is correlated with the mediator")
+
+#Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
+
+pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex)), caption="Step 3:  Show that the mediator affects the outcome variable")
+
+#Step 4:  To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero (see discussion below on significance testing).   The effects in both Steps 3 and 4 are estimated in the same equation.
+
+
+```
+
+##Agency as a mediator of robot when controlling for age
+```{r stepwise_mediation_agency}
+#Find a mediation test, where experience mediates the effect of robot type on uncanny index while controlling for age.
+
+#http://davidakenny.net/cm/mediate.htm
+#Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
+
+pander(summary(lm(UVindex~Robot+Age.cent,data=UVindex)), caption="Step 1: Show that the causal variable is correlated with the outcome")
+
+#Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
+
+pander(summary(lm(Agency.cent~Robot+Age.cent,data=UVindex.old)), caption="Step 2: Show that the causal variable is correlated with the mediator")
+
+#Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
+
+pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,data=UVindex.old)), caption="Step 3:  Show that the mediator affects the outcome variable")
+
+#Step 4:  To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero (see discussion below on significance testing).   The effects in both Steps 3 and 4 are estimated in the same equation.
+
+
 ```

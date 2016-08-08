@@ -41,6 +41,7 @@ library(lubridate) #for calculating ages
 library(Hmisc) #for importing SPSS
 library(plyr) #for joining data frames
 library(pander) #for displaying tables
+library(bda) #for mediation testing
 ```
 
 ```{r standard_error}
@@ -453,7 +454,7 @@ abline(lm(UVindex$UVindex~UVindex$Agency))
 
 ```
 
-```{r scatter_UV}
+```{r Uncanny_scatter}
 KasparFront = UVindex[ which( UVindex$Robot=="Kaspar Front"), ]
 KasparBack = UVindex[ which( UVindex$Robot=="Kaspar Back"), ]
 
@@ -489,36 +490,44 @@ abline(lm(KasparBack$UVindex~KasparBack$AgeYears), col = machineColor, lwd = lin
 legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
 ```
 
-```{r mediation}
-library(bda)
+## Experience as mediator
+```{r mediation_experience}
+#library(bda)
 #mediator variable: mv = expindex
 #ndependent variable: iv = robot
 #dependent variable: dv = uncanny index
 
-#what about children older than 12
-pander(mediation.test(mv=UVindex.old$Experience,iv=UVindex.old$Robot,dv=UVindex.old$UVindex), caption="Test of experience as a mediator with robot appearance as predictor for children older than 9")
+#attempt to replicate adult data
+pander(mediation.test(mv=UVindex.old$Exp.cent,iv=UVindex.old$Robot,dv=UVindex.old$UVindex), caption="Test of experience as a mediator with robot appearance as predictor for children older than 9")
 
-pander(mediation.test(mv=UVindex.old$Experience,iv=UVindex.old$Age,dv=UVindex.old$UVindex), caption="Test of experience as a mediator by Age for older kids")
+#all children
+pander(mediation.test(mv=UVindex$Exp.cent,iv=UVindex$Robot,dv=UVindex$UVindex), caption="Test of experience as a mediator for all children with robot appearance as predictor for all children")
 
-pander(mediation.test(mv=UVindex$Experience,iv=UVindex$Age,dv=UVindex$UVindex), caption="Test of experience as a mediator by Age for all kids")
+#age as predictor
+pander(mediation.test(mv=UVindex.old$Exp.cent,iv=UVindex.old$Age.cent,dv=UVindex.old$UVindex), caption="Test of experience as a mediator with age as predictor all children older than 9")
 
+#age as predictor all children
+pander(mediation.test(mv=UVindex$Exp.cent,iv=UVindex$Age.cent,dv=UVindex$UVindex), caption="Test of experience as a mediator with age as predictor all children")
+
+#age as binary predictor all children
 UVindex$Age.bin = ifelse(UVindex$AgeGroup<3,0,1)
-
-pander(mediation.test(mv=UVindex$Experience,iv=UVindex$Age.bin,dv=UVindex$UVindex), caption="Test of experience as a mediator by Age Group (<9) for all kids")
-
-pander(mediation.test(mv=UVindex$Experience,iv=UVindex$Robot,dv=UVindex$UVindex), caption="Test of experience as a mediator for all children with robot as predictor")
-
-UVindex = UVindex[which(!is.na(UVindex$Agency)),]
-pander(mediation.test(mv=UVindex$Agency,iv=UVindex$Robot,dv=UVindex$UVindex), caption="Test of Agency as a mediator for all children with robot as predictor")
-
-pander(mediation.test(mv=UVindex$Agency,iv=UVindex$Age,dv=UVindex$UVindex), caption="Test of Agency as a mediator for all children with age as predictor")
+pander(mediation.test(mv=UVindex$Exp.cent,iv=UVindex$Age.bin,dv=UVindex$UVindex), caption="Test of experience as a mediator by Age Group (<9) for all kids")
 
 #experience becomes more crucial for older kids, some kind of test to show this?
 #we have evidence that agency is a mediator for all kids
 ```
 
 ##Experience as a mediator for robot when controlling for age
-```{r stepwise_mediation_experience}
+
+Step 1: Show that the causal variable is correlated with the outcome
+
+Step 2: Show that the causal variable is correlated with the mediator
+
+Step 3: Show that the mediator affects the outcome variable
+
+Step 4: To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero
+
+```{r BaronKenny_mediation_experience}
 #Find a mediation test, where experience mediates the effect of robot type on uncanny index while controlling for age.
 
 #http://davidakenny.net/cm/mediate.htm
@@ -539,8 +548,132 @@ pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex)), caption="Step 
 
 ```
 
+```{r MacKinnon_mediation_experience}
+#MacKinnon et al., 2007
+#Product of coefficients methods
+
+#Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
+
+#Equation 2
+eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex)
+b = eq2$coefficients["Exp.cent"]
+v.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
+
+#Equation 3
+eq3 = lm(Exp.cent~Robot+Age.cent,data=UVindex)
+a = eq3$coefficients["RobotKaspar Front"]
+v.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+
+#To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
+
+se.ab = a^2*v.b + b^2*v.a - v.a*v.b #Product of two independent random variables (Goodman, 1960)
+
+sig = (a*b)/se.ab
+abs(sig)>1.96
+
+#The rationale behind this method is that mediation depends on the extent to which the program changes the mediator, a, and the extent to which the mediator affects the outcome variable, b.
+```
+
+The product of the coefficients ab = `r round(a*b,2)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
+
+```{r scatter_mediation_experience}
+#where the independent variable, X, is dichotomous (to simplify the plot), the mediator, M, is on the horizontal axis, and the dependent variable, Y, is on the vertical axis
+
+KasparFront = UVindex[ which( UVindex$Robot=="Kaspar Front"), ]
+KasparBack = UVindex[ which( UVindex$Robot=="Kaspar Back"), ]
+
+#create scatter plot that looks at effect of age and robot type on creepiness factor
+plot.new()
+par(mar=c(5,5,5,5)+0.1)
+plot(KasparFront$Experience, jitter(KasparFront$UVindex), main = "Mediation Plot", xlab = 'Experience', ylab="Uncanny Index", yaxt = 'n', xaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = responseAxis)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(KasparFront$Experience, jitter(KasparFront$UVindex), col = humanColor)
+axis(1, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+axis(2, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+abline(lm(KasparFront$UVindex~KasparFront$Experience+KasparFront$Age), col = humanColor, lwd = lineWidth)
+
+points(jitter(KasparBack$Experience), jitter(KasparBack$UVindex), col = machineColor)
+abline(lm(KasparBack$UVindex~KasparBack$Experience+KasparBack$Age), col = machineColor, lwd = lineWidth)
+
+legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+
+#The two slanted lines in the plot represent the relation of M to Y in each X group, one line for the human-like robot group and one line for the machine-like robot group. The two lines are not parallel because there is an XM interaction in Equation 2, with the slope of each line equal to the b coefficient (b = -.0039 se(b) = .13; b = -.17; se(b) = .13). The distance between the horizontal lines in the plots is equal to the overall effect of X on Y, c (c = -.04, se(c) = .09) and the distance between the vertical lines is equal to the effect of X on M, a (a = .67, se(a) = .20). The mediated effect is the change in the regression line relating M to Y for a change in M of a units as shown in the graph. Plots of the mediated effect may be useful to investigate the distributions of data for outliers and to improve understanding of relations among variables in the mediation model.
+```
+
+
+```{r MacKinnon_mediation_experience_old}
+#MacKinnon et al., 2007
+#Product of coefficients methods
+
+#Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
+
+#Equation 2
+eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex.old)
+b = eq2$coefficients["Exp.cent"]
+v.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
+
+#Equation 3
+eq3 = lm(Exp.cent~Robot+Age.cent,data=UVindex.old)
+a = eq3$coefficients["RobotKaspar Front"]
+v.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+
+#To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
+
+se.ab = a^2*v.b + b^2*v.a - v.a*v.b #Product of two independent random variables (Goodman, 1960)
+
+sig = (a*b)/se.ab
+abs(sig)>1.96
+
+#The rationale behind this method is that mediation depends on the extent to which the program changes the mediator, a, and the extent to which the mediator affects the outcome variable, b.
+```
+
+The product of the coefficients ab = `r round(a*b,2)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
+
+```{r scatter_mediation_experience_old}
+#where the independent variable, X, is dichotomous (to simplify the plot), the mediator, M, is on the horizontal axis, and the dependent variable, Y, is on the vertical axis
+
+KasparFront = UVindex.old[ which( UVindex.old$Robot=="Kaspar Front"), ]
+KasparBack = UVindex.old[ which( UVindex.old$Robot=="Kaspar Back"), ]
+
+#create scatter plot that looks at effect of age and robot type on creepiness factor
+plot.new()
+par(mar=c(5,5,5,5)+0.1)
+plot(KasparFront$Experience, jitter(KasparFront$UVindex), main = "Mediation Plot", xlab = 'Experience', ylab="Uncanny Index", yaxt = 'n', xaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = responseAxis)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(KasparFront$Experience, jitter(KasparFront$UVindex), col = humanColor)
+axis(1, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+axis(2, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+abline(lm(KasparFront$UVindex~KasparFront$Experience+KasparFront$Age), col = humanColor, lwd = lineWidth)
+
+points(jitter(KasparBack$Experience), jitter(KasparBack$UVindex), col = machineColor)
+abline(lm(KasparBack$UVindex~KasparBack$Experience+KasparBack$Age), col = machineColor, lwd = lineWidth)
+
+legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+
+#The two slanted lines in the plot represent the relation of M to Y in each X group, one line for the human-like robot group and one line for the machine-like robot group. The two lines are not parallel because there is an XM interaction in Equation 2, with the slope of each line equal to the b coefficient (b = -.0039 se(b) = .13; b = -.17; se(b) = .13). The distance between the horizontal lines in the plots is equal to the overall effect of X on Y, c (c = -.04, se(c) = .09) and the distance between the vertical lines is equal to the effect of X on M, a (a = .67, se(a) = .20). The mediated effect is the change in the regression line relating M to Y for a change in M of a units as shown in the graph. Plots of the mediated effect may be useful to investigate the distributions of data for outliers and to improve understanding of relations among variables in the mediation model.
+```
+
+##Agency as mediator
+```{r mediation_agency}
+UVindex.ag = UVindex[which(!is.na(UVindex$Agency)),]
+pander(mediation.test(mv=UVindex.ag$Agency,iv=UVindex.ag$Robot,dv=UVindex.ag$UVindex), caption="Test of Agency as a mediator with robot appearance as predictor for all children")
+
+pander(mediation.test(mv=UVindex.ag$Agency,iv=UVindex.ag$Age,dv=UVindex.ag$UVindex), caption="Test of Agency as a mediator with age as predictor for all children")
+```
+
 ##Agency as a mediator of robot when controlling for age
-```{r stepwise_mediation_agency}
+
+Step 1: Show that the causal variable is correlated with the outcome
+
+Step 2: Show that the causal variable is correlated with the mediator
+
+Step 3: Show that the mediator affects the outcome variable
+
+Step 4: To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero
+
+```{r BaronKenny_mediation_agency}
 #Find a mediation test, where experience mediates the effect of robot type on uncanny index while controlling for age.
 
 #http://davidakenny.net/cm/mediate.htm
@@ -556,7 +689,58 @@ pander(summary(lm(Agency.cent~Robot+Age.cent,data=UVindex.old)), caption="Step 2
 
 pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,data=UVindex.old)), caption="Step 3:  Show that the mediator affects the outcome variable")
 
-#Step 4:  To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero (see discussion below on significance testing).   The effects in both Steps 3 and 4 are estimated in the same equation.
-
-
+#Step 4:  To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero (see discussion below on significance testing). The effects in both Steps 3 and 4 are estimated in the same equation.
 ```
+
+```{r MacKinnon_mediation_agency}
+#MacKinnon et al., 2007
+
+#Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
+
+#Equation 2
+eq2 = lm(UVindex~Agency.cent+Robot+Age.cent,data=UVindex)
+b = eq2$coefficients["Agency.cent"]
+v.b = summary(eq2)$coef[,'Std. Error']['Agency.cent']
+
+#Equation 3
+eq3 = lm(Agency.cent~Robot+Age.cent,data=UVindex)
+a = eq3$coefficients["RobotKaspar Front"]
+v.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+
+#To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
+
+se.ab = (a^2)*v.b + (b^2)*v.a - v.a*v.b #Product of two independent random variables (Goodman, 1960)
+
+sig = (a*b)/se.ab
+abs(sig)>1.96
+
+#The rationale behind this method is that mediation depends on the extent to which the program changes the mediator, a, and the extent to which the mediator affects the outcome variable, b.
+```
+
+The product of the coefficients ab = `r round(a*b,2)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
+
+```{r scatter_mediation_agency}
+#where the independent variable, X, is dichotomous (to simplify the plot), the mediator, M, is on the horizontal axis, and the dependent variable, Y, is on the vertical axis
+
+KasparFront = UVindex[ which( UVindex$Robot=="Kaspar Front"), ]
+KasparBack = UVindex[ which( UVindex$Robot=="Kaspar Back"), ]
+
+#create scatter plot that looks at effect of age and robot type on creepiness factor
+plot.new()
+par(mar=c(5,5,5,5)+0.1)
+plot(KasparFront$Agency, jitter(KasparFront$UVindex), main = "Reports of Creepiness", xlab = 'Agency', ylab="Uncanny Index", yaxt = 'n', xaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = responseAxis)
+u <- par("usr") 
+rect(u[1], u[3], u[2], u[4], col = plotFill)
+points(KasparFront$Agency, jitter(KasparFront$UVindex), col = humanColor)
+axis(1, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+axis(2, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
+abline(lm(KasparFront$UVindex~KasparFront$Agency+KasparFront$Age), col = humanColor, lwd = lineWidth)
+
+points(KasparBack$Agency, jitter(KasparBack$UVindex), col = machineColor)
+abline(lm(KasparBack$UVindex~KasparBack$Agency+KasparBack$Age), col = machineColor, lwd = lineWidth)
+
+legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+
+#The two slanted lines in the plot represent the relation of M to Y in each X group, one line for the human-like robot group and one line for the machine-like robot group. The two lines are not parallel because there is an XM interaction in Equation 2, with the slope of each line equal to the b coefficient (b = -.10 se(b) = .10; b = -.37 se(b) = .11). The distance between the horizontal lines in the plots is equal to the overall effect of X on Y, c (c = -.06, se(c) = .002) and the distance between the vertical lines is equal to the effect of X on M, a (a = .28, se(a) = .13). The mediated effect is the change in the regression line relating M to Y for a change in M of a units as shown in the graph. Plots of the mediated effect may be useful to investigate the distributions of data for outliers and to improve understanding of relations among variables in the mediation model.
+```
+

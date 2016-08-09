@@ -517,6 +517,34 @@ pander(mediation.test(mv=UVindex$Exp.cent,iv=UVindex$Age.bin,dv=UVindex$UVindex)
 #we have evidence that agency is a mediator for all kids
 ```
 
+```{r MacKinnon_mediation_exp}
+#MacKinnon et al., 2007
+#Product of coefficients methods
+
+#Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
+
+#Equation 2
+eq2 = lm(UVindex~Exp.cent+Robot,data=UVindex.old)
+b = eq2$coefficients["Exp.cent"]
+v.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
+
+#Equation 3
+eq3 = lm(Exp.cent~Robot,data=UVindex.old)
+a = eq3$coefficients["RobotKaspar Front"]
+v.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+
+#To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
+
+se.ab = a^2*v.b + b^2*v.a - v.a*v.b #Product of two independent random variables (Goodman, 1960)
+
+sig = (a*b)/se.ab
+abs(sig)>1.96
+
+#The rationale behind this method is that mediation depends on the extent to which the program changes the mediator, a, and the extent to which the mediator affects the outcome variable, b.
+```
+
+The product of the coefficients ab = `r round(a*b,2)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
+
 ##Experience as a mediator for robot when controlling for age
 
 Step 1: Show that the causal variable is correlated with the outcome
@@ -601,6 +629,36 @@ legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = 
 #The two slanted lines in the plot represent the relation of M to Y in each X group, one line for the human-like robot group and one line for the machine-like robot group. The two lines are not parallel because there is an XM interaction in Equation 2, with the slope of each line equal to the b coefficient (b = -.0039 se(b) = .13; b = -.17; se(b) = .13). The distance between the horizontal lines in the plots is equal to the overall effect of X on Y, c (c = -.04, se(c) = .09) and the distance between the vertical lines is equal to the effect of X on M, a (a = .67, se(a) = .20). The mediated effect is the change in the regression line relating M to Y for a change in M of a units as shown in the graph. Plots of the mediated effect may be useful to investigate the distributions of data for outliers and to improve understanding of relations among variables in the mediation model.
 ```
 
+##Experience as a mediator for robot when controlling for age for only older children
+
+Step 1: Show that the causal variable is correlated with the outcome
+
+Step 2: Show that the causal variable is correlated with the mediator
+
+Step 3: Show that the mediator affects the outcome variable
+
+Step 4: To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero
+
+```{r BaronKenny_mediation_experience_old}
+#Find a mediation test, where experience mediates the effect of robot type on uncanny index while controlling for age.
+
+#http://davidakenny.net/cm/mediate.htm
+#Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
+
+pander(summary(lm(UVindex~Robot+Age.cent,data=UVindex.old)), caption="Step 1: Show that the causal variable is correlated with the outcome")
+
+#Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
+
+pander(summary(lm(Exp.cent~Robot+Age.cent,data=UVindex.old)), caption="Step 2: Show that the causal variable is correlated with the mediator")
+
+#Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
+
+pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex.old)), caption="Step 3:  Show that the mediator affects the outcome variable")
+
+#Step 4:  To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero (see discussion below on significance testing).   The effects in both Steps 3 and 4 are estimated in the same equation.
+
+
+```
 
 ```{r MacKinnon_mediation_experience_old}
 #MacKinnon et al., 2007
@@ -642,7 +700,7 @@ par(mar=c(5,5,5,5)+0.1)
 plot(KasparFront$Experience, jitter(KasparFront$UVindex), main = "Mediation Plot", xlab = 'Experience', ylab="Uncanny Index", yaxt = 'n', xaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = responseAxis)
 u <- par("usr") 
 rect(u[1], u[3], u[2], u[4], col = plotFill)
-points(KasparFront$Experience, jitter(KasparFront$UVindex), col = humanColor)
+points(jitter(KasparFront$Experience), jitter(KasparFront$UVindex), col = humanColor)
 axis(1, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
 axis(2, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
 abline(lm(KasparFront$UVindex~KasparFront$Experience+KasparFront$Age), col = humanColor, lwd = lineWidth)
@@ -683,11 +741,11 @@ pander(summary(lm(UVindex~Robot+Age.cent,data=UVindex)), caption="Step 1: Show t
 
 #Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
 
-pander(summary(lm(Agency.cent~Robot+Age.cent,data=UVindex.old)), caption="Step 2: Show that the causal variable is correlated with the mediator")
+pander(summary(lm(Agency.cent~Robot+Age.cent,data=UVindex)), caption="Step 2: Show that the causal variable is correlated with the mediator")
 
 #Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
 
-pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,data=UVindex.old)), caption="Step 3:  Show that the mediator affects the outcome variable")
+pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,data=UVindex)), caption="Step 3:  Show that the mediator affects the outcome variable")
 
 #Step 4:  To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero (see discussion below on significance testing). The effects in both Steps 3 and 4 are estimated in the same equation.
 ```

@@ -125,26 +125,63 @@ lineWidth = 5
 #the bars are then split into human-like and machine-like robot for each age group
 
 barByAge <-function(v.back,v.front,data,title){
-means.back <- aggregate(v.back~AgeGroup,data,mean) #find means of var for each age group for the machine-like robot
-means.front <- aggregate(v.front~AgeGroup,data,mean) #find means of var for each age group for the human-like robot
+  #find means of var for each age group for the machine-like robot
+  means.back <- aggregate(v.back~AgeGroup,data,mean) 
 
-se.back <- aggregate(v.back~AgeGroup,data,s.error) #find standard error of var for each age group for the machine-like robot
-se.front <- aggregate(v.front~AgeGroup,data,s.error) #find standard error of var for each age group for the human-like robot
-
-means.mat<-matrix(c(means.back$v.back,means.front$v.front),ncol=4,byrow=T)-1 #combine means into one matrix
-se.mat<-matrix(c(se.back$v.back,se.front$v.front),ncol=4,byrow=FALSE) #combine se into one matrix
-
-colnames(means.mat) <- c('3-5','6-8','9-11','12-17') #label the columns by age group
-rownames(means.mat) <- c('Machine-like','Human-like') #label the rows by robot type
-#means <- as.table(means)
-means.matR <- round(means.mat,2) #produce rounded values of the matrix for displaying on the plot
-g.range = range(0,ceiling(max(means.mat)+1)) #determine y-axis range
-
-plot.new()
-barCenters <- barplot(means.mat, col=c(machineColor,humanColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title,xlab="Age (years)", cex.main = 2.5, cex.lab = responseAxis, cex.axis = responseAxis)
-axis(2, at = c(0:3), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis) #change y axis labels
-arrows(barCenters, means.mat-se.mat, barCenters, means.mat+se.mat, lwd = 3, length=0.05, angle=90, code=3) #add +/- 1 standard error bars
-text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) #print mean values above each bar
+  #find means of variable for each age group for the human-like robot
+  means.front <- aggregate(v.front~AgeGroup,data,mean) 
+  
+  #find standard error of var for each age group for the machine-like robot
+  se.back <- aggregate(v.back~AgeGroup,data,s.error) 
+  #find standard error of var for each age group for the human-like robot
+  se.front <- aggregate(v.front~AgeGroup,data,s.error) 
+  
+  means.mat<-matrix(c(means.back$v.back,means.front$v.front),ncol=4,byrow=T)-1 #combine means into one matrix
+  se.mat<-matrix(c(se.back$v.back,se.front$v.front),ncol=4,byrow=FALSE) #combine se into one matrix
+  
+  #label the columns by age group
+  colnames(means.mat) <- c('3-5','6-8','9-11','12-17')
+  #label the rows by robot type
+  rownames(means.mat) <- c('Machine-like','Human-like')
+  
+  #produce rounded values of the matrix for displaying on the plot
+  means.matR <- round(means.mat,2) 
+  #determine y-axis range
+  g.range = range(0,ceiling(max(means.mat)+1)) 
+  
+  plot.new()
+  barCenters <- barplot(means.mat, 
+                        col=c(machineColor,humanColor), 
+                        legend = rownames(means.mat), 
+                        beside = TRUE, 
+                        ylim=g.range, 
+                        yaxt='n',
+                        las=1,
+                        main=title,
+                        xlab="Age (years)", 
+                        cex.main = 2.5, 
+                        cex.lab = responseAxis, 
+                        cex.axis = responseAxis)
+  #change y axis labels
+  axis(2, 
+       at = c(0:3), 
+       labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+       cex.axis = responseAxis) 
+  
+  #add +/- 1 standard error bars
+  arrows(barCenters, 
+         means.mat-se.mat, 
+         barCenters, 
+         means.mat+se.mat, 
+         lwd = 3, 
+         length=0.05, 
+         angle=90, 
+         code=3) 
+  #print mean values above each bar
+  text(barCenters,
+       means.mat+1.5*se.mat+.1,
+       label=means.matR, 
+       cex = responseAxis) 
 }
 ```
 
@@ -153,28 +190,61 @@ text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) #p
 #the function creates a barplot with age on the x axis and response to an interview question on the y-axis. 
 #the bars are then split into human-like and machine-like robot for each age group
 barByAge_3robots <-function(v.back,v.front,v.nao,data,title){
-means.back <- aggregate(v.back~AgeGroup,data,mean) #find means of var for each age group for the machine-like robot
-means.front <- aggregate(v.front~AgeGroup,data,mean) #find means of var for each age group for the human-like robot
-means.nao <- aggregate(v.nao~AgeGroup,data,mean) #find means of var for each age group for Nao
-
-se.back <- aggregate(v.back~AgeGroup,data,s.error) #find standard error of var for each age group for the machine-like robot
-se.front <- aggregate(v.front~AgeGroup,data,s.error) #find standard error of var for each age group for the human-like robot
-se.nao <- aggregate(v.nao ~AgeGroup,data,s.error) #find standard error of var for each age group for the Nao
-
-means.mat<-matrix(c(means.back$v.back,means.front$v.front,means.nao$v.nao),ncol=4,byrow=T)-1 #combine means into one matrix
-se.mat<-matrix(c(se.back$v.back,se.front$v.front,se.nao$v.nao),ncol=4,byrow=FALSE) #combine se into one matrix
-
-colnames(means.mat) <- c('3-5','6-8','9-11','12-17') #label the columns by age group
-rownames(means.mat) <- c('Machine-like','Human-like','Nao') #label the rows by robot type
-#means <- as.table(means)
-means.matR <- round(means.mat,2) #produce rounded values of the matrix for displaying on the plot
-g.range = range(0,ceiling(max(means.mat)+1)) #determine y-axis range
-
-plot.new()
-barCenters <- barplot(means.mat, col=c(machineColor,humanColor,naoColor), legend = rownames(means.mat), beside = TRUE, ylim=g.range, yaxt='n',las=1,main=title, xlab = "Age (years)", cex.main = 2.5, cex.lab = responseAxis, cex.axis = responseAxis)
-axis(2, at = c(0:3), labels = c('', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis) #change y axis labels
-arrows(barCenters, means.mat-se.mat, barCenters, means.mat+se.mat, lwd = 3, length=0.05, angle=90, code=3) #add +/- 1 standard error bars
-#text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) #print mean values above each bar
+  #find means of variable for each age group for the machine-like robot
+  means.back <- aggregate(v.back~AgeGroup,data,mean) 
+  #find means of variable for each age group for the human-like robot
+  means.front <- aggregate(v.front~AgeGroup,data,mean)
+  #find means of variable for each age group for Nao
+  means.nao <- aggregate(v.nao~AgeGroup,data,mean) 
+  #find standard error of var for each age group for the machine-like robot
+  se.back <- aggregate(v.back~AgeGroup,data,s.error)
+  #find standard error of var for each age group for the human-like robot
+  se.front <- aggregate(v.front~AgeGroup,data,s.error) 
+  #find standard error of var for each age group for the Nao
+  se.nao <- aggregate(v.nao ~AgeGroup,data,s.error) 
+  
+  #combine means into one matrix
+  means.mat<-matrix(c(means.back$v.back,means.front$v.front,means.nao$v.nao),ncol=4,byrow=T)-1 
+  #combine se into one matrix
+  se.mat<-matrix(c(se.back$v.back,se.front$v.front,se.nao$v.nao),ncol=4,byrow=FALSE)
+  
+  #label the columns by age group
+  colnames(means.mat) <- c('3-5','6-8','9-11','12-17')
+  #label the rows by robot type
+  rownames(means.mat) <- c('Machine-like','Human-like','Nao') 
+  
+  #produce rounded values of the matrix for displaying on the plot
+  means.matR <- round(means.mat,2)
+  
+  #determine y-axis range
+  g.range = range(0,ceiling(max(means.mat)+1)) 
+  
+  plot.new()
+  barCenters <- barplot(means.mat, 
+                        col=c(machineColor,humanColor,naoColor), 
+                        legend = rownames(means.mat), 
+                        beside = TRUE, ylim=g.range, 
+                        yaxt='n',las=1,main=title, 
+                        xlab = "Age (years)", 
+                        cex.main = 2.5, 
+                        cex.lab = responseAxis, 
+                        cex.axis = responseAxis)
+  #change y axis labels
+  axis(2, 
+       at = c(0:3), 
+       labels = c('', 'A little bit', 'A medium amount', 'A lot'), 
+       cex.axis = responseAxis) 
+  #add +/- 1 standard error bars
+  arrows(barCenters, 
+         means.mat-se.mat, 
+         barCenters, 
+         means.mat+se.mat,
+         lwd = 3, 
+         length=0.05, 
+         angle=90, 
+         code=3) 
+  #print mean values above each bar
+  #text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) 
 }
 ```
 
@@ -187,7 +257,9 @@ UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F) #la
 
 ```{r formatting}
 #library plyr
-UV.original <- UV.original[UV.original$Order==1|UV.original$Order==2|is.na(UV.original$Order),] #exclude orders 3 and where both conditions were presented together (leaving only between subjects for analysis)
+#exclude orders 3 and where both conditions were presented together (leaving only between subjects for analysis)
+UV.original <- UV.original[UV.original$Order==1|UV.original$Order==2|is.na(UV.original$Order),] 
+
 UV.original = UV.original[which(!is.na(UV.original$SubID)),] #remove empty observations
 
 UV.original$Age = NULL #remove experiementer entered age (will calculate later)
@@ -200,13 +272,15 @@ names(UV.original)[names(UV.original) == 'PA11'] <- 'PQ11' #correct name of vari
 #original data set was created in long format, the following code converts it to short format
 #each participant had an observation for either the machine-like robot or human-like robot, then they had a set of answers about Nao. This makes sure all answers about robots are included in one observation.
 
-UV.Nao <- UV.original[UV.original$Condition==3,] #separate answers about Nao robot into data frame UV.Nao
-UV.Front <- UV.original[UV.original$Condition==2,] #separate answers about Human-like robot into data frame UV.Front
-UV.Back <- UV.original[UV.original$Condition==1,] #separate answers about Machine-like robot into data frame UV.Back
+#separate answers about each robot into separate data frames
+UV.Nao <- UV.original[UV.original$Condition==3,] 
+UV.Front <- UV.original[UV.original$Condition==2,] 
+UV.Back <- UV.original[UV.original$Condition==1,] 
 
-UV.Nao = UV.Nao[which(!is.na(UV.Nao$SubID)),] #remove empty observations (that would have somehow magically slipped by when I removed them before)
-UV.Front = UV.Front[which(!is.na(UV.Front$SubID)),] #remove empty observations
-UV.Back = UV.Back[which(!is.na(UV.Back$SubID)),] #remove empty observations
+#remove empty observations (that would have somehow magically slipped by when I removed them before)
+UV.Nao = UV.Nao[which(!is.na(UV.Nao$SubID)),] 
+UV.Front = UV.Front[which(!is.na(UV.Front$SubID)),] 
+UV.Back = UV.Back[which(!is.na(UV.Back$SubID)),] 
 
 #rename variables for consistency and differentiation for when they are joined back together
 names(UV.Nao) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
@@ -231,14 +305,15 @@ UV.NB <- join( UV.Back,UV.Nao ) #combine observations about Nao and observations
 UV.NF <- join( UV.Front,UV.Nao ) #combine observations about Nao and observations about the machine-like robot by subject ID
 UV.Total <- merge( UV.NB,UV.NF,by="SubID",all.x=T,all.y=T ) #put all the observations together into one data frame
 
-
 #copy over variables that do not have a ".x" or ".y" on their name
 UV = UV.Total[c("SubID","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")]
 
 #copy over variables with a ".x" or ".y" but remove that from the end of the variable name
 for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")) {
   
-  UV[[var]] = safe.ifelse(is.na(UV.Total[[paste(var,".x",sep="")]]),UV.Total[[paste(var,".y",sep="")]],UV.Total[[paste(var,".x",sep="")]])
+  UV[[var]] = safe.ifelse(is.na(UV.Total[[paste(var,".x",sep="")]]),
+                          UV.Total[[paste(var,".y",sep="")]],
+                          UV.Total[[paste(var,".x",sep="")]])
 }
 
 ```
@@ -252,7 +327,7 @@ UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interv
 #calculate age of participant in years
 UV$AgeYears = UV$Age/12
 
-#separate into four different age groups
+#separate into four age groups
 UV$AgeGroup = factor(ifelse(UV$Age<72, "1", ifelse(UV$Age<108, "2", ifelse(UV$Age<144, "3", "4"))))
 UV = UV[which(UV$AgeYears>1),]
 
@@ -358,10 +433,6 @@ a.front.factor2 = psych::alpha(UV[front.factor2]) #alpha = .66
 a.front.factor3 = psych::alpha(UV[front.factor3]) #alpha = .75
 ```
 
-```{r efa_table}
-
-```
-
 After considering Kaiser’s criterion (eigenvalues ≥ 1), a scree plot, and model fit indices, the results suggested a three factor model. According to Kaiser's criterion, 5 factors are recommended. However, the fourth and fifth factors are not interpretable and only have one item. Therefore, we assessed three factors. The chi-square test of model fit supported the three factor solution, but not 2, $\chi^2$(`r efa.QF$dof`) = `r round(efa.QF$STATISTIC,2)`, $p =$ `r round(efa.QF$PVAL,2)`. The chi-square test is suitable for this sample of `r sum(UV$Order==2)` (less than 500).
 
 This left three factors: Factor 1 (pain, fear, hunger) with loadings greater than 0.75, $\alpha =$ `r round(a.front.factor1$total[1],2)`, Factor 2 (think, choose, moral, aware) with loadings greater than 0.4, $\alpha =$ `r round(a.front.factor2$total[1],2)`, and Factor 3 (creepy, weird) with loadings greater than 0.75,  $\alpha =$ `r round(a.front.factor3$total[1],2)`.
@@ -434,60 +505,88 @@ UVindex$Agency.cent = scale(UVindex$Agency,center=T,scale=T)
 UVindex$Exp.cent = scale(UVindex$Experience,center=T,scale=T)
 UVindex$Age.cent = scale(UVindex$Age,center=T,scale=T)
 
-pander(summary(lm(Agency~Age+Robot+Age*Robot,data=UVindex)))
-pander(summary(lm(Experience~Age+Robot+Age*Robot,data=UVindex)))
+pander(summary(lm(Agency~Age+Robot+Age*Robot,
+                  data=UVindex)))
+pander(summary(lm(Experience~Age+Robot+Age*Robot,
+                  data=UVindex)))
 
 #divide participants into groups based on when the Uncanny Valley effect appears (groups 3 & 4 show effect, groups 1 & 2 do not)
 UVindex.old = UVindex[which(UVindex$AgeGroup>2),]
 UVindex.young = UVindex[which(UVindex$AgeGroup<3),]
 
 #regression analyses to predict creepiness factor
-pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,data=UVindex)))
+pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,
+                  data=UVindex)))
 
 
 #look at whether different predictors are significant for the older children where the uncanny effect exists.
-pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,data=UVindex.old)))
-
-#look at direction of effect of agency on UVindex in plot
-plot(jitter(UVindex$UVindex),(UVindex$Agency))
-abline(lm(UVindex$UVindex~UVindex$Agency))
-
+pander(summary(lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,
+                  data=UVindex.old)))
 ```
 
 ```{r Uncanny_scatter}
 KasparFront = UVindex[ which( UVindex$Robot=="Kaspar Front"), ]
 KasparBack = UVindex[ which( UVindex$Robot=="Kaspar Back"), ]
 
-#create scatter plot that looks at effect of age and robot type on creepiness factor
 plot.new()
 par(mar=c(5,5,5,5)+0.1)
-plot(KasparFront$AgeYears, jitter(KasparFront$UVindex), main = "Reports of Creepiness", xlab = 'Age (years)', ylab="", yaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = responseAxis)
-u <- par("usr") 
-rect(u[1], u[3], u[2], u[4], col = plotFill)
-points(KasparFront$AgeYears, jitter(KasparFront$UVindex), col = humanColor)
-axis(2, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
-abline(lm(KasparFront$UVindex~KasparFront$AgeYears), col = humanColor, lwd = lineWidth)
-# fit <- lm(KasparFront$UVindex~KasparFront$AgeYears)
-# a <- summary(fit)$coefficient['(Intercept)','Estimate']
-# b <- summary(fit)$coefficient['KasparFront$AgeYears','Estimate']
-# r2 <- format(summary(fit)$adj.r.squared, digits = 3)
-# f <- summary(fit)$fstatistic
-# p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
-# p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
-# text(((2.5-a)/b)-8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = responseAxis)
+plot(KasparFront$AgeYears, 
+     jitter(KasparFront$UVindex), 
+     main = "Reports of Creepiness", 
+     xlab = 'Age (years)', 
+     ylab="", 
+     yaxt = 'n', 
+     col = humanColor, 
+     cex.main = titleSizeSmall, 
+     cex.axis = responseAxis, 
+     cex.lab = responseAxis)
 
+#label y-axis
+axis(2, 
+     at = c(1:4), 
+     labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+     cex.axis = responseAxis)
+
+#add regression line for human-like condition
+abline(lm(UVindex~AgeYears,
+          data = KasparFront),
+       col = humanColor, 
+       lwd = lineWidth)
+
+#print regression equation on plot
+#fit <- lm(KasparFront$UVindex~KasparFront$AgeYears)
+#a <- summary(fit)$coefficient['(Intercept)','Estimate']
+#b <- summary(fit)$coefficient['KasparFront$AgeYears','Estimate']
+#r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+#f <- summary(fit)$fstatistic
+#p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+#p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+#text(((2.5-a)/b)-8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = humanColor, cex = responseAxis)
+
+#add data points for machine-Like condition to plot
 points(KasparBack$AgeYears, jitter(KasparBack$UVindex), col = machineColor)
-abline(lm(KasparBack$UVindex~KasparBack$AgeYears), col = machineColor, lwd = lineWidth)
+#add regression line for machine-like condition
+abline(lm(UVindex~AgeYears,
+          data=KasparBack), 
+       col = machineColor, 
+       lwd = lineWidth)
+
+#print regression equation on plot
 #fit <- lm(KasparBack$UVindex~KasparBack$AgeYears)
 #a <- summary(fit)$coefficient['(Intercept)','Estimate']
 #b <- summary(fit)$coefficient['KasparBack$AgeYears','Estimate']
-# r2 <- format(summary(fit)$adj.r.squared, digits = 3)
-# f <- summary(fit)$fstatistic
-# p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
-# p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
-# text(((2.5-a)/b)+8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = machineColor, cex = responseAxis)
+#r2 <- format(summary(fit)$adj.r.squared, digits = 3)
+#f <- summary(fit)$fstatistic
+#p <- format(pf(f[1],f[2],f[3],lower.tail=F), digits = 3)
+#p <- ifelse(p<0.001, 0.001, ifelse(p<0.01, 0.01, ifelse(p<0.05,0.05,p)))
+#text(((2.5-a)/b)+8, 2.5, bquote(paste( R^2 == .(r2), ', p '< .(p))), col = machineColor, cex = responseAxis)
 
-legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+legend('topright',
+       c("Human-like", "Machine-like"), 
+       col = c(humanColor,machineColor), 
+       lwd = lineWidth, 
+       bg = 'white', 
+       inset = .025)
 ```
 
 ## Experience as mediator
@@ -497,24 +596,17 @@ legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = 
 #ndependent variable: iv = robot
 #dependent variable: dv = uncanny index
 
-#attempt to replicate adult data
-pander(mediation.test(mv=UVindex.old$Exp.cent,iv=UVindex.old$Robot,dv=UVindex.old$UVindex), caption="Test of experience as a mediator with robot appearance as predictor for children older than 9")
+#test for replication of adult data with only older children
+pander(mediation.test(mv=UVindex.old$Exp.cent,
+                      iv=UVindex.old$Robot,
+                      dv=UVindex.old$UVindex), 
+       caption="Test of experience as a mediator with robot appearance as predictor for children older than 9")
 
-#all children
-pander(mediation.test(mv=UVindex$Exp.cent,iv=UVindex$Robot,dv=UVindex$UVindex), caption="Test of experience as a mediator for all children with robot appearance as predictor for all children")
-
-#age as predictor
-pander(mediation.test(mv=UVindex.old$Exp.cent,iv=UVindex.old$Age.cent,dv=UVindex.old$UVindex), caption="Test of experience as a mediator with age as predictor all children older than 9")
-
-#age as predictor all children
-pander(mediation.test(mv=UVindex$Exp.cent,iv=UVindex$Age.cent,dv=UVindex$UVindex), caption="Test of experience as a mediator with age as predictor all children")
-
-#age as binary predictor all children
-UVindex$Age.bin = ifelse(UVindex$AgeGroup<3,0,1)
-pander(mediation.test(mv=UVindex$Exp.cent,iv=UVindex$Age.bin,dv=UVindex$UVindex), caption="Test of experience as a mediator by Age Group (<9) for all kids")
-
-#experience becomes more crucial for older kids, some kind of test to show this?
-#we have evidence that agency is a mediator for all kids
+#test for replication of adult data with all children
+pander(mediation.test(mv=UVindex$Exp.cent,
+                      iv=UVindex$Robot,
+                      dv=UVindex$UVindex), 
+       caption="Test of experience as a mediator for all children with robot appearance as predictor for all children")
 ```
 
 ```{r MacKinnon_mediation_exp}
@@ -524,18 +616,24 @@ pander(mediation.test(mv=UVindex$Exp.cent,iv=UVindex$Age.bin,dv=UVindex$UVindex)
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Exp.cent+Robot,data=UVindex.old)
+eq2 = lm(UVindex~Exp.cent+Robot,
+         data=UVindex.old)
 b = eq2$coefficients["Exp.cent"]
-v.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
+var.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
 
 #Equation 3
-eq3 = lm(Exp.cent~Robot,data=UVindex.old)
+eq3 = lm(Exp.cent~Robot,
+         data=UVindex.old)
 a = eq3$coefficients["RobotKaspar Front"]
-v.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+var.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
-se.ab = a^2*v.b + b^2*v.a - v.a*v.b #Product of two independent random variables (Goodman, 1960)
+#variance of the roduct of two independent random variables (Goodman, 1960)
+var.ab = a^2*var.b + b^2*var.a - var.a*var.b 
+
+#The standard error of an estimate may also be defined as the square root of the estimated error 
+se.ab = sqrt(abs(var.ab))
 
 sig = (a*b)/se.ab
 abs(sig)>1.96
@@ -561,19 +659,23 @@ Step 4: To establish that M completely mediates the X-Y relationship, the effect
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
 
-pander(summary(lm(UVindex~Robot+Age.cent,data=UVindex)), caption="Step 1: Show that the causal variable is correlated with the outcome")
+pander(summary(lm(UVindex~Robot+Age.cent,
+                  data=UVindex)), 
+       caption="Step 1: Show that the causal variable is correlated with the outcome")
 
 #Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
 
-pander(summary(lm(Exp.cent~Robot+Age.cent,data=UVindex)), caption="Step 2: Show that the causal variable is correlated with the mediator")
+pander(summary(lm(Exp.cent~Robot+Age.cent,
+                  data=UVindex)), 
+       caption="Step 2: Show that the causal variable is correlated with the mediator")
 
 #Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
 
-pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex)), caption="Step 3:  Show that the mediator affects the outcome variable")
+pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,
+                  data=UVindex)), 
+       caption="Step 3:  Show that the mediator affects the outcome variable")
 
 #Step 4:  To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero (see discussion below on significance testing).   The effects in both Steps 3 and 4 are estimated in the same equation.
-
-
 ```
 
 ```{r MacKinnon_mediation_experience}
@@ -583,18 +685,24 @@ pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex)), caption="Step 
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex)
+eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,
+         data=UVindex)
 b = eq2$coefficients["Exp.cent"]
-v.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
+var.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
 
 #Equation 3
-eq3 = lm(Exp.cent~Robot+Age.cent,data=UVindex)
+eq3 = lm(Exp.cent~Robot+Age.cent,
+         data=UVindex)
 a = eq3$coefficients["RobotKaspar Front"]
-v.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+var.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
-se.ab = a^2*v.b + b^2*v.a - v.a*v.b #Product of two independent random variables (Goodman, 1960)
+#variance of the roduct of two independent random variables (Goodman, 1960)
+var.ab = a^2*var.b + b^2*var.a - var.a*var.b 
+
+#The standard error of an estimate may also be defined as the square root of the estimated error 
+se.ab = sqrt(abs(var.ab))
 
 sig = (a*b)/se.ab
 abs(sig)>1.96
@@ -610,21 +718,51 @@ The product of the coefficients ab = `r round(a*b,2)`, t = `r round(sig,2)` (Mac
 KasparFront = UVindex[ which( UVindex$Robot=="Kaspar Front"), ]
 KasparBack = UVindex[ which( UVindex$Robot=="Kaspar Back"), ]
 
-#create scatter plot that looks at effect of age and robot type on creepiness factor
 plot.new()
 par(mar=c(5,5,5,5)+0.1)
-plot(KasparFront$Experience, jitter(KasparFront$UVindex), main = "Mediation Plot", xlab = 'Experience', ylab="Uncanny Index", yaxt = 'n', xaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = responseAxis)
-u <- par("usr") 
-rect(u[1], u[3], u[2], u[4], col = plotFill)
-points(KasparFront$Experience, jitter(KasparFront$UVindex), col = humanColor)
-axis(1, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
-axis(2, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
-abline(lm(KasparFront$UVindex~KasparFront$Experience+KasparFront$Age), col = humanColor, lwd = lineWidth)
+plot(KasparFront$Experience, 
+     jitter(KasparFront$UVindex), 
+     main = "Mediation Plot", 
+     xlab = 'Experience', 
+     ylab="Uncanny Index", 
+     yaxt = 'n', 
+     xaxt = 'n', 
+     col = humanColor, 
+     cex.main = titleSizeSmall, 
+     cex.axis = responseAxis, 
+     cex.lab = responseAxis)
 
+#add regression line for human-like condition
+abline(lm(UVindex~Experience+Age,
+          data = KasparFront),
+       col = humanColor, 
+       lwd = lineWidth)
+
+#print x-axis labels
+axis(1, 
+     at = c(1:4), 
+     labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+     cex.axis = responseAxis)
+#print y-axis labels
+axis(2, 
+     at = c(1:4), 
+     labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+     cex.axis = responseAxis)
+
+#add data points for machine-Like condition to plot
 points(jitter(KasparBack$Experience), jitter(KasparBack$UVindex), col = machineColor)
-abline(lm(KasparBack$UVindex~KasparBack$Experience+KasparBack$Age), col = machineColor, lwd = lineWidth)
+#add regression line for machine-like condition
+abline(lm(UVindex~Experience+Age,
+          data = KasparBack),
+       col = machineColor, 
+       lwd = lineWidth)
 
-legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+legend('topright',
+       c("Human-like", "Machine-like"), 
+       col = c(humanColor,machineColor), 
+       lwd = lineWidth, 
+       bg = 'white', 
+       inset = .025)
 
 #The two slanted lines in the plot represent the relation of M to Y in each X group, one line for the human-like robot group and one line for the machine-like robot group. The two lines are not parallel because there is an XM interaction in Equation 2, with the slope of each line equal to the b coefficient (b = -.0039 se(b) = .13; b = -.17; se(b) = .13). The distance between the horizontal lines in the plots is equal to the overall effect of X on Y, c (c = -.04, se(c) = .09) and the distance between the vertical lines is equal to the effect of X on M, a (a = .67, se(a) = .20). The mediated effect is the change in the regression line relating M to Y for a change in M of a units as shown in the graph. Plots of the mediated effect may be useful to investigate the distributions of data for outliers and to improve understanding of relations among variables in the mediation model.
 ```
@@ -645,15 +783,21 @@ Step 4: To establish that M completely mediates the X-Y relationship, the effect
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
 
-pander(summary(lm(UVindex~Robot+Age.cent,data=UVindex.old)), caption="Step 1: Show that the causal variable is correlated with the outcome")
+pander(summary(lm(UVindex~Robot+Age.cent,
+                  data=UVindex.old)), 
+       caption="Step 1: Show that the causal variable is correlated with the outcome")
 
 #Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
 
-pander(summary(lm(Exp.cent~Robot+Age.cent,data=UVindex.old)), caption="Step 2: Show that the causal variable is correlated with the mediator")
+pander(summary(lm(Exp.cent~Robot+Age.cent,
+                  data=UVindex.old)), 
+       caption="Step 2: Show that the causal variable is correlated with the mediator")
 
 #Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
 
-pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex.old)), caption="Step 3:  Show that the mediator affects the outcome variable")
+pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,
+                  data=UVindex.old)), 
+       caption="Step 3:  Show that the mediator affects the outcome variable")
 
 #Step 4:  To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero (see discussion below on significance testing).   The effects in both Steps 3 and 4 are estimated in the same equation.
 
@@ -667,18 +811,24 @@ pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex.old)), caption="S
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,data=UVindex.old)
+eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,
+         data=UVindex.old)
 b = eq2$coefficients["Exp.cent"]
-v.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
+var.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
 
 #Equation 3
-eq3 = lm(Exp.cent~Robot+Age.cent,data=UVindex.old)
+eq3 = lm(Exp.cent~Robot+Age.cent,
+         data=UVindex.old)
 a = eq3$coefficients["RobotKaspar Front"]
-v.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+var.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
-se.ab = a^2*v.b + b^2*v.a - v.a*v.b #Product of two independent random variables (Goodman, 1960)
+#variance of the roduct of two independent random variables (Goodman, 1960)
+var.ab = a^2*var.b + b^2*var.a - var.a*var.b 
+
+#The standard error of an estimate may also be defined as the square root of the estimated error 
+se.ab = sqrt(abs(var.ab))
 
 sig = (a*b)/se.ab
 abs(sig)>1.96
@@ -697,18 +847,50 @@ KasparBack = UVindex.old[ which( UVindex.old$Robot=="Kaspar Back"), ]
 #create scatter plot that looks at effect of age and robot type on creepiness factor
 plot.new()
 par(mar=c(5,5,5,5)+0.1)
-plot(KasparFront$Experience, jitter(KasparFront$UVindex), main = "Mediation Plot", xlab = 'Experience', ylab="Uncanny Index", yaxt = 'n', xaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = responseAxis)
-u <- par("usr") 
-rect(u[1], u[3], u[2], u[4], col = plotFill)
-points(jitter(KasparFront$Experience), jitter(KasparFront$UVindex), col = humanColor)
-axis(1, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
-axis(2, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
-abline(lm(KasparFront$UVindex~KasparFront$Experience+KasparFront$Age), col = humanColor, lwd = lineWidth)
+plot(KasparFront$Experience, 
+     jitter(KasparFront$UVindex), 
+     main = "Mediation Plot", 
+     xlab = 'Experience', 
+     ylab="Uncanny Index", 
+     yaxt = 'n', 
+     xaxt = 'n', 
+     col = humanColor, 
+     cex.main = titleSizeSmall, 
+     cex.axis = responseAxis, 
+     cex.lab = responseAxis)
 
+#print x-axis labels
+axis(1, 
+     at = c(1:4), 
+     labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+     cex.axis = responseAxis)
+#print y-axis labels
+axis(2, 
+     at = c(1:4), 
+     labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+     cex.axis = responseAxis)
+
+
+#add regression line for human-like condition
+abline(lm(UVindex~Experience+Age, 
+          data=KasparFront), 
+       col = humanColor, 
+       lwd = lineWidth)
+
+#add data points for machine-Like condition to plot
 points(jitter(KasparBack$Experience), jitter(KasparBack$UVindex), col = machineColor)
-abline(lm(KasparBack$UVindex~KasparBack$Experience+KasparBack$Age), col = machineColor, lwd = lineWidth)
+#add regression line for machine-like condition
+abline(lm(UVindex~Experience+Age,
+          data=KasparBack), 
+       col = machineColor, 
+       lwd = lineWidth)
 
-legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+legend('topright',
+       c("Human-like", "Machine-like"), 
+       col = c(humanColor,machineColor), 
+       lwd = lineWidth, 
+       bg = 'white', 
+       inset = .025)
 
 #The two slanted lines in the plot represent the relation of M to Y in each X group, one line for the human-like robot group and one line for the machine-like robot group. The two lines are not parallel because there is an XM interaction in Equation 2, with the slope of each line equal to the b coefficient (b = -.0039 se(b) = .13; b = -.17; se(b) = .13). The distance between the horizontal lines in the plots is equal to the overall effect of X on Y, c (c = -.04, se(c) = .09) and the distance between the vertical lines is equal to the effect of X on M, a (a = .67, se(a) = .20). The mediated effect is the change in the regression line relating M to Y for a change in M of a units as shown in the graph. Plots of the mediated effect may be useful to investigate the distributions of data for outliers and to improve understanding of relations among variables in the mediation model.
 ```
@@ -716,9 +898,16 @@ legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = 
 ##Agency as mediator
 ```{r mediation_agency}
 UVindex.ag = UVindex[which(!is.na(UVindex$Agency)),]
-pander(mediation.test(mv=UVindex.ag$Agency,iv=UVindex.ag$Robot,dv=UVindex.ag$UVindex), caption="Test of Agency as a mediator with robot appearance as predictor for all children")
 
-pander(mediation.test(mv=UVindex.ag$Agency,iv=UVindex.ag$Age,dv=UVindex.ag$UVindex), caption="Test of Agency as a mediator with age as predictor for all children")
+pander(mediation.test(mv=UVindex.ag$Agency,
+                      iv=UVindex.ag$Robot,
+                      dv=UVindex.ag$UVindex), 
+       caption="Test of Agency as a mediator with robot appearance as predictor for all children")
+
+pander(mediation.test(mv=UVindex.ag$Agency,
+                      iv=UVindex.ag$Age,
+                      dv=UVindex.ag$UVindex), 
+       caption="Test of Agency as a mediator with age as predictor for all children")
 ```
 
 ##Agency as a mediator of robot when controlling for age
@@ -737,15 +926,21 @@ Step 4: To establish that M completely mediates the X-Y relationship, the effect
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
 
-pander(summary(lm(UVindex~Robot+Age.cent,data=UVindex)), caption="Step 1: Show that the causal variable is correlated with the outcome")
+pander(summary(lm(UVindex~Robot+Age.cent,
+                  data=UVindex)), 
+       caption="Step 1: Show that the causal variable is correlated with the outcome")
 
 #Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
 
-pander(summary(lm(Agency.cent~Robot+Age.cent,data=UVindex)), caption="Step 2: Show that the causal variable is correlated with the mediator")
+pander(summary(lm(Agency.cent~Robot+Age.cent,
+                  data=UVindex)), 
+       caption="Step 2: Show that the causal variable is correlated with the mediator")
 
 #Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
 
-pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,data=UVindex)), caption="Step 3:  Show that the mediator affects the outcome variable")
+pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,
+                  data=UVindex)), 
+       caption="Step 3:  Show that the mediator affects the outcome variable")
 
 #Step 4:  To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero (see discussion below on significance testing). The effects in both Steps 3 and 4 are estimated in the same equation.
 ```
@@ -756,18 +951,24 @@ pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,data=UVindex)), caption="St
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Agency.cent+Robot+Age.cent,data=UVindex)
-b = eq2$coefficients["Agency.cent"]
-v.b = summary(eq2)$coef[,'Std. Error']['Agency.cent']
+eq2 = lm(UVindex~Agency.cent+Robot+Age.cent,
+         data=UVindex)
+b = eq2$coefficients[["Agency.cent"]]
+var.b = summary(eq2)$coef[,'Std. Error'][['Agency.cent']]
 
 #Equation 3
-eq3 = lm(Agency.cent~Robot+Age.cent,data=UVindex)
-a = eq3$coefficients["RobotKaspar Front"]
-v.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+eq3 = lm(Agency.cent~Robot+Age.cent,
+         data=UVindex)
+a = eq3$coefficients[["RobotKaspar Front"]]
+var.a = summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']]
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
-se.ab = (a^2)*v.b + (b^2)*v.a - v.a*v.b #Product of two independent random variables (Goodman, 1960)
+#variance of the roduct of two independent random variables (Goodman, 1960)
+var.ab = a^2*var.b + b^2*var.a - var.a*var.b 
+
+#The standard error of an estimate may also be defined as the square root of the estimated error 
+se.ab = sqrt(abs(var.ab))
 
 sig = (a*b)/se.ab
 abs(sig)>1.96
@@ -786,18 +987,44 @@ KasparBack = UVindex[ which( UVindex$Robot=="Kaspar Back"), ]
 #create scatter plot that looks at effect of age and robot type on creepiness factor
 plot.new()
 par(mar=c(5,5,5,5)+0.1)
-plot(KasparFront$Agency, jitter(KasparFront$UVindex), main = "Reports of Creepiness", xlab = 'Agency', ylab="Uncanny Index", yaxt = 'n', xaxt = 'n', col = humanColor, cex.main = titleSizeSmall, cex.axis = responseAxis, cex.lab = responseAxis)
-u <- par("usr") 
-rect(u[1], u[3], u[2], u[4], col = plotFill)
-points(KasparFront$Agency, jitter(KasparFront$UVindex), col = humanColor)
-axis(1, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
-axis(2, at = c(1:4), labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), cex.axis = responseAxis)
-abline(lm(KasparFront$UVindex~KasparFront$Agency+KasparFront$Age), col = humanColor, lwd = lineWidth)
+plot(jitter(KasparFront$Agency), 
+     jitter(KasparFront$UVindex), 
+     main = "Reports of Creepiness", 
+     xlab = 'Agency', 
+     ylab="Uncanny Index", 
+     yaxt = 'n', 
+     xaxt = 'n', 
+     col = humanColor, 
+     cex.main = titleSizeSmall, 
+     cex.axis = responseAxis, 
+     cex.lab = responseAxis)
 
-points(KasparBack$Agency, jitter(KasparBack$UVindex), col = machineColor)
-abline(lm(KasparBack$UVindex~KasparBack$Agency+KasparBack$Age), col = machineColor, lwd = lineWidth)
+axis(1, 
+     at = c(1:4), 
+     labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+     cex.axis = responseAxis)
+axis(2, 
+     at = c(1:4), 
+     labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+     cex.axis = responseAxis)
 
-legend('topright',c("Human-like", "Machine-like"), col = c("Red","Blue"), lwd = lineWidth, bg = 'white', inset = .025)
+abline(lm(UVindex~Agency+Age,
+          data = KasparFront),
+       col = humanColor, 
+       lwd = lineWidth)
+
+points(jitter(KasparBack$Agency), jitter(KasparBack$UVindex), col = machineColor)
+abline(lm(UVindex~Agency+Age,
+          data = KasparBack), 
+       col = machineColor, 
+       lwd = lineWidth)
+
+legend('topright',
+       c("Human-like", "Machine-like"), 
+       col = c(humanColor,machineColor), 
+       lwd = lineWidth, 
+       bg = 'white', 
+       inset = .025)
 
 #The two slanted lines in the plot represent the relation of M to Y in each X group, one line for the human-like robot group and one line for the machine-like robot group. The two lines are not parallel because there is an XM interaction in Equation 2, with the slope of each line equal to the b coefficient (b = -.10 se(b) = .10; b = -.37 se(b) = .11). The distance between the horizontal lines in the plots is equal to the overall effect of X on Y, c (c = -.06, se(c) = .002) and the distance between the vertical lines is equal to the effect of X on M, a (a = .28, se(a) = .13). The mediated effect is the change in the regression line relating M to Y for a change in M of a units as shown in the graph. Plots of the mediated effect may be useful to investigate the distributions of data for outliers and to improve understanding of relations among variables in the mediation model.
 ```

@@ -618,14 +618,14 @@ pander(mediation.test(mv=UVindex$Exp.cent,
 #Equation 2
 eq2 = lm(UVindex~Exp.cent+Robot,
          data=UVindex.old)
-b = eq2$coefficients["Exp.cent"]
-var.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
+b = eq2$coefficients[["Exp.cent"]]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.cent']])^2
 
 #Equation 3
 eq3 = lm(Exp.cent~Robot,
          data=UVindex.old)
-a = eq3$coefficients["RobotKaspar Front"]
-var.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+a = eq3$coefficients[["RobotKaspar Front"]]
+var.a = (summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']])^2
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
@@ -687,14 +687,14 @@ pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,
 #Equation 2
 eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,
          data=UVindex)
-b = eq2$coefficients["Exp.cent"]
-var.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
+b = eq2$coefficients[["Exp.cent"]]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.cent']])^2
 
 #Equation 3
 eq3 = lm(Exp.cent~Robot+Age.cent,
          data=UVindex)
-a = eq3$coefficients["RobotKaspar Front"]
-var.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+a = eq3$coefficients[["RobotKaspar Front"]]
+var.a = (summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']])^2
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
@@ -813,14 +813,14 @@ pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,
 #Equation 2
 eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,
          data=UVindex.old)
-b = eq2$coefficients["Exp.cent"]
-var.b = summary(eq2)$coef[,'Std. Error']['Exp.cent']
+b = eq2$coefficients[["Exp.cent"]]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.cent']])^2
 
 #Equation 3
 eq3 = lm(Exp.cent~Robot+Age.cent,
          data=UVindex.old)
-a = eq3$coefficients["RobotKaspar Front"]
-var.a = summary(eq3)$coef[,'Std. Error']['RobotKaspar Front']
+a = eq3$coefficients[["RobotKaspar Front"]]
+var.a = (summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']])^2
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
@@ -954,13 +954,13 @@ pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,
 eq2 = lm(UVindex~Agency.cent+Robot+Age.cent,
          data=UVindex)
 b = eq2$coefficients[["Agency.cent"]]
-var.b = summary(eq2)$coef[,'Std. Error'][['Agency.cent']]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Agency.cent']])^2
 
 #Equation 3
 eq3 = lm(Agency.cent~Robot+Age.cent,
          data=UVindex)
 a = eq3$coefficients[["RobotKaspar Front"]]
-var.a = summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']]
+var.a = (summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']])^2
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 

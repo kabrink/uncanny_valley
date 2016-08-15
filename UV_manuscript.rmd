@@ -618,19 +618,23 @@ pander(mediation.test(mv=UVindex$Exp.cent,
 #Equation 2
 eq2 = lm(UVindex~Exp.cent+Robot,
          data=UVindex.old)
+pander(summary(eq2), caption='Is the slope of Experience significantly different from zero?')
 b = eq2$coefficients[["Exp.cent"]]
 var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.cent']])^2
+n.b = length(resid(eq2))
 
 #Equation 3
 eq3 = lm(Exp.cent~Robot,
          data=UVindex.old)
+pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
 var.a = (summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']])^2
+n.a = length(resid(eq3))
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
 #variance of the roduct of two independent random variables (Goodman, 1960)
-var.ab = a^2*var.b + b^2*var.a - var.a*var.b 
+var.ab = a^2*(var.b/n.b) + b^2*(var.a/n.a) - ((var.a/n.a)*(var.b/n.b)) 
 
 #The standard error of an estimate may also be defined as the square root of the estimated error 
 se.ab = sqrt(abs(var.ab))
@@ -641,7 +645,7 @@ abs(sig)>1.96
 #The rationale behind this method is that mediation depends on the extent to which the program changes the mediator, a, and the extent to which the mediator affects the outcome variable, b.
 ```
 
-The product of the coefficients ab = `r round(a*b,2)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
+The product of the coefficients ab = `r round(a*b,4)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
 
 ##Experience as a mediator for robot when controlling for age
 
@@ -687,19 +691,23 @@ pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,
 #Equation 2
 eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,
          data=UVindex)
+pander(summary(eq2), caption='Is the slope of Experience significantly different from zero?')
 b = eq2$coefficients[["Exp.cent"]]
 var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.cent']])^2
+n.b = length(resid(eq2))
 
 #Equation 3
 eq3 = lm(Exp.cent~Robot+Age.cent,
          data=UVindex)
+pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
 var.a = (summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']])^2
+n.a = length(resid(eq3))
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
 #variance of the roduct of two independent random variables (Goodman, 1960)
-var.ab = a^2*var.b + b^2*var.a - var.a*var.b 
+var.ab = a^2*(var.b/n.b) + b^2*(var.a/n.a) - ((var.a/n.a)*(var.b/n.b)) 
 
 #The standard error of an estimate may also be defined as the square root of the estimated error 
 se.ab = sqrt(abs(var.ab))
@@ -710,7 +718,7 @@ abs(sig)>1.96
 #The rationale behind this method is that mediation depends on the extent to which the program changes the mediator, a, and the extent to which the mediator affects the outcome variable, b.
 ```
 
-The product of the coefficients ab = `r round(a*b,2)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
+The product of the coefficients ab = `r round(a*b,4)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
 
 ```{r scatter_mediation_experience}
 #where the independent variable, X, is dichotomous (to simplify the plot), the mediator, M, is on the horizontal axis, and the dependent variable, Y, is on the vertical axis
@@ -813,19 +821,23 @@ pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,
 #Equation 2
 eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,
          data=UVindex.old)
+pander(summary(eq2), caption='Is the slope of Experience significantly different from zero?')
 b = eq2$coefficients[["Exp.cent"]]
 var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.cent']])^2
+n.b = length(resid(eq2))
 
 #Equation 3
 eq3 = lm(Exp.cent~Robot+Age.cent,
          data=UVindex.old)
+pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
 var.a = (summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']])^2
+n.a = length(resid(eq3))
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
 #variance of the roduct of two independent random variables (Goodman, 1960)
-var.ab = a^2*var.b + b^2*var.a - var.a*var.b 
+var.ab = a^2*(var.b/n.b) + b^2*(var.a/n.a) - ((var.a/n.a)*(var.b/n.b)) 
 
 #The standard error of an estimate may also be defined as the square root of the estimated error 
 se.ab = sqrt(abs(var.ab))
@@ -836,7 +848,7 @@ abs(sig)>1.96
 #The rationale behind this method is that mediation depends on the extent to which the program changes the mediator, a, and the extent to which the mediator affects the outcome variable, b.
 ```
 
-The product of the coefficients ab = `r round(a*b,2)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
+The product of the coefficients ab = `r round(a*b,4)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
 
 ```{r scatter_mediation_experience_old}
 #where the independent variable, X, is dichotomous (to simplify the plot), the mediator, M, is on the horizontal axis, and the dependent variable, Y, is on the vertical axis
@@ -951,21 +963,26 @@ pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Agency.cent+Robot+Age.cent,
+eq2 = lm(UVindex~Robot+Agency.cent+Age.cent,
          data=UVindex)
+pander(summary(eq2))
+pander(summary(eq2), caption='Is the slope of Agency significantly different from zero?')
 b = eq2$coefficients[["Agency.cent"]]
 var.b = (summary(eq2)$coef[,'Std. Error'][['Agency.cent']])^2
+n.b = length(resid(eq2))
 
 #Equation 3
 eq3 = lm(Agency.cent~Robot+Age.cent,
          data=UVindex)
+pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
 var.a = (summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']])^2
+n.a = length(resid(eq3))
 
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
 #variance of the roduct of two independent random variables (Goodman, 1960)
-var.ab = a^2*var.b + b^2*var.a - var.a*var.b 
+var.ab = a^2*(var.b/n.b) + b^2*(var.a/n.a) - ((var.a/n.a)*(var.b/n.b)) 
 
 #The standard error of an estimate may also be defined as the square root of the estimated error 
 se.ab = sqrt(abs(var.ab))
@@ -976,7 +993,7 @@ abs(sig)>1.96
 #The rationale behind this method is that mediation depends on the extent to which the program changes the mediator, a, and the extent to which the mediator affects the outcome variable, b.
 ```
 
-The product of the coefficients ab = `r round(a*b,2)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
+The product of the coefficients ab = `r round(a*b,4)`, t = `r round(sig,2)` (MacKinnon, Fairchild, & Fritz, 2007)
 
 ```{r scatter_mediation_agency}
 #where the independent variable, X, is dichotomous (to simplify the plot), the mediator, M, is on the horizontal axis, and the dependent variable, Y, is on the vertical axis

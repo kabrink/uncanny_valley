@@ -469,6 +469,9 @@ pander(t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$
 UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back)/3
 UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front)/3
 
+# UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back)/2
+# UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front)/2
+
 barByAge(UV$Exp.Back,UV$Exp.Front,UV, "Perceptions of Experience")
 ```
 
@@ -483,6 +486,21 @@ cor.test(UV$UVindex.Back,UV$Exp.Back)
 cor.test(UV$UVindex.Front,UV$Exp.Front)
 
 cor.test(UV$Agency.Back,UV$Exp.Back)
+
+cor.test(UV$Agency.Front,UV$Exp.Front)
+
+
+###Old kids
+UV.old = UV[which(UV$AgeYears>=9),]
+UV.young = UV[which(UV$AgeYears<9),]
+
+cor.test(UV.young$Agency.Back,UV.young$Exp.Back)
+
+cor.test(UV.young$Agency.Front,UV.young$Exp.Front)
+
+cor.test(UV.old$Agency.Back,UV.old$Exp.Back)
+
+cor.test(UV.old$Agency.Front,UV.old$Exp.Front)
 ```
 
 ```{r regressions}

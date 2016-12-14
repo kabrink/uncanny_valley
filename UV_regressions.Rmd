@@ -1,0 +1,603 @@
+---
+title: "Uncanny Valley - Manuscript"
+author: "Kimberly A. Brink"
+date: "June 30, 2016"
+output: html_document
+---
+###Survey Questions
+
+Uncanny Valley 1: Do you feel the robot is creepy?
+
+Uncanny Valley 2: Does the robot make you feel weird?
+
+Uncanny Valley 3: Would you want to play with the robot?
+
+Agency 1: Can the robot do things on purpose?
+
+Agency 2: When the robot moves does it choose to move?
+
+Internal State 1: Does the robot think for itself?
+
+Internal State 2: Does the robot know the difference between good and bad?
+
+Internal State 3: Would the robot feel pain?
+
+Internal State 4: Does the robot have feelings?
+
+Internal State 5: Would the robot feel scared?
+
+Internal State 6: Would the robot feel hungry?
+
+Human-likeness 1: Is this robot like a human?
+
+Exploratory 1: Does the robot know it's a robot?
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.path='Manuscript Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, fig.keep='last', echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r load_libraries}
+library(lubridate) #for calculating ages
+library(Hmisc) #for importing SPSS
+library(plyr) #for joining data frames
+library(pander) #for displaying tables
+library(bda) #for mediation testing
+library(car) #anova
+library(QuantPsyc)
+library(lsr)
+library(reshape2) #melt
+library(lavaan) #mediation and moderation
+#library(extrafont)
+#library(showtext)
+#font_import(pattern="[T/t]w Cen MT",prompt=FALSE)
+#loadfonts(device="postscript")
+
+#font.add("Tw Cen MT", regular = "Tw Cen MT.ttf",
+#    bold = "Tw Cen MT Bold.ttf", italic = "Tw Cen MT Italic.ttf", bolditalic = "Tw Cen MT Bold Italic.ttf")
+```
+
+```{r standard_error}
+#calculates standard error (automatically removes missing values)
+s.error <- function(x) sd(x,na.rm=TRUE)/sqrt(length(x))
+```
+
+```{r safe_ifelse}
+#when using the original ifelse statement, the class of the variable contained in the yes/no statements is not protected. if a variable is contained in the yes/no statement, it may be converted to an illegible numerical class. "ifelse makes factors lose their levels and Dates lose their class and only their mode (numeric) is restored"
+
+#this safe.ifelse function came from: http://stackoverflow.com/questions/6668963/how-to-prevent-ifelse-from-turning-date-objects-into-numeric-objects
+
+#it protects both date columns and factor columns
+
+safe.ifelse <- function(cond, yes, no) {
+      class.y <- class(yes)
+      if ("factor" %in% class.y) {  
+        levels.y = levels(yes)
+      }
+      X <- ifelse(cond,yes,no)
+      if ("factor" %in% class.y) {  
+        X = as.factor(X)
+        levels(X) = levels.y
+      } else {
+        class(X) <- class.y
+      }
+      return(X)
+}
+```
+
+
+```{r plot_settings}
+#change plot aesthetics here
+responseAxis <- 1.3 #
+responseAxis2 <- 1.9
+ageAxis <- 2 
+humanColor =  rgb(146/255, 87/255, 160/255)#'dimgray' #color of bars and points for human-like robot
+machineColor = rgb(140/255, 197/255, 69/255)#'lightgray' #color of bars and points for machine-like robot
+naoColor = rgb(248/255, 154/255, 52/255)#'white' #color of bars and points for Nao
+plotFill = 'white' #background of plot
+titleSize = 3 #size of main label
+titleSizeSmall = 2
+titleSizeExtraSmall = 1.5
+font = "Georgia"
+lineWidth = 5
+```
+
+```{r barByAge_plot_function}
+#because I will be repeatedly creating a plot for multiple variables looking at the effect of robot and age, here is a function for it.
+#the function creates a barplot with age on the x axis and response to an interview question on the y-axis. 
+#the bars are then split into human-like and machine-like robot for each age group
+
+barByAge <-function(v.back,v.front,data,title){
+  #find means of var for each age group for the machine-like robot
+  means.back <- aggregate(v.back~AgeGroup,data,mean) 
+
+  #find means of variable for each age group for the human-like robot
+  means.front <- aggregate(v.front~AgeGroup,data,mean) 
+  
+  #find standard error of var for each age group for the machine-like robot
+  se.back <- aggregate(v.back~AgeGroup,data,s.error) 
+  #find standard error of var for each age group for the human-like robot
+  se.front <- aggregate(v.front~AgeGroup,data,s.error) 
+  
+  means.mat<-matrix(c(means.back$v.back,means.front$v.front),ncol=4,byrow=T)-1 #combine means into one matrix
+  se.mat<-matrix(c(se.back$v.back,se.front$v.front),ncol=4,byrow=FALSE) #combine se into one matrix
+  
+  #label the columns by age group
+  colnames(means.mat) <- c('3-5','6-8','9-11','12-18')
+  #label the rows by robot type
+  rownames(means.mat) <- c('Machine-like','Human-like')
+  
+  #produce rounded values of the matrix for displaying on the plot
+  means.matR <- round(means.mat,2) 
+  #determine y-axis range
+  g.range = range(0,ceiling(max(means.mat)+1)) 
+  
+  plot.new()
+  barCenters <- barplot(means.mat, 
+                        col=c(machineColor,humanColor), 
+                        legend = rownames(means.mat), 
+                        beside = TRUE, 
+                        ylim=g.range, 
+                        yaxt='n',
+                        las=1,
+                        main=title,
+                        xlab="Age (years)", 
+                        cex.main = 2.5, 
+                        cex.lab = responseAxis, 
+                        cex.axis = responseAxis)
+  #change y axis labels
+  axis(2, 
+       at = c(0:3), 
+       labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+       cex.axis = responseAxis) 
+  
+  #add +/- 1 standard error bars
+  arrows(barCenters, 
+         means.mat-se.mat, 
+         barCenters, 
+         means.mat+se.mat, 
+         lwd = 3, 
+         length=0.05, 
+         angle=90, 
+         code=3) 
+  #print mean values above each bar
+  #text(barCenters,
+  #     means.mat+1.5*se.mat+.1,
+  #     label=means.matR, 
+  #     cex = responseAxis) 
+}
+```
+
+```{r barByAgeGG_function}
+barByAgeGG <-function(v.back,v.front,v.nao,data,title){
+  #find means of var for each age group for the machine-like robot
+  means.back <- aggregate(v.back~AgeGroup,data,mean)
+  #find means of variable for each age group for the human-like robot
+  means.front <- aggregate(v.front~AgeGroup,data,mean) 
+  #find means of variable for each age group for the human-like robot
+  means.nao <- aggregate(v.nao~AgeGroup,data,mean) 
+  
+  #find standard error of var for each age group for the machine-like robot
+  se.back <- aggregate(v.back~AgeGroup,data,s.error) 
+  #find standard error of var for each age group for the human-like robot
+  se.front <- aggregate(v.front~AgeGroup,data,s.error) 
+  #find standard error of var for each age group for the human-like robot
+  se.nao <- aggregate(v.nao~AgeGroup,data,s.error) 
+  
+  means.mat<-matrix(c(means.back$v.back,means.front$v.front,means.nao$v.nao),
+                    ncol=4,
+                    byrow=T)-1 #combine means into one matrix
+  se.mat<-matrix(c(se.back$v.back,se.front$v.front,se.nao$v.nao),
+                 ncol=4,
+                 byrow=FALSE) #combine se into one matrix
+  
+  #label the columns by age group
+  colnames(means.mat) <- c('3-5','6-8','9-11','12-18')
+  colnames(se.mat) <- c('3-5','6-8','9-11','12-18')
+
+  #label the rows by robot type
+  rownames(means.mat) <- c('Machine-like','Human-like','Nao')
+  rownames(se.mat) <- c('Machine-like','Human-like','Nao')
+
+  #produce rounded values of the matrix for displaying on the plot
+  means.matR <- round(means.mat,2) 
+
+  plotData = melt(means.matR)
+  seData = melt(se.mat)
+  
+  names(plotData) = c("Robot","Age Group",title)
+  names(seData) = c("Robot","Age Group","SE")
+  #title = plotData$
+
+  plotData = join(plotData,seData)
+  
+  p = ggplot(data = plotData, aes(x = `Age Group`, y = plotData[title], fill = Robot))
+ # p = p + guides(fill=guide_legend(margin=.1))
+  p = p + geom_bar(width = .65, position=position_dodge(), stat="identity")
+  p = p + geom_errorbar(aes(ymin=plotData[title]-SE, ymax=plotData[title]+SE),
+                        width=.2,
+                        size = 2, # Width of the error bars
+                        position=position_dodge(.65))
+  p = p + labs(x="Age (years)",y=title)
+  p = p + theme(text = element_text(size=36,family="Tw Cen MT"), 
+                axis.text.x = element_text(size=24),
+                axis.title.x = element_text(margin=margin(0,0,20,0)),
+                axis.text.y=element_text(angle=90, hjust=.5, size=24),
+                axis.title.y=element_text(margin=margin(0,20,0,0)),
+                legend.background = element_rect(),
+                legend.key.size = unit(2, "cm"))
+  p = p + scale_y_continuous(limits = c(0,2.5),
+                         breaks=0:3,
+                         labels=c('Not at all', 'A little bit', 'A medium amount', 'A lot'),
+                         expand = waiver())
+  p
+  
+}
+```
+
+```{r barByAge_3robots_function}
+#because I will be repeatedly creating a plot for multiple variables looking at the effect of robot and age, here is a function for it.
+#the function creates a barplot with age on the x axis and response to an interview question on the y-axis. 
+#the bars are then split into human-like and machine-like robot for each age group
+barByAge_3robots <-function(v.back,v.front,v.nao,data,title){
+  #find means of variable for each age group for the machine-like robot
+  means.back <- aggregate(v.back~AgeGroup,data,mean) 
+  #find means of variable for each age group for the human-like robot
+  means.front <- aggregate(v.front~AgeGroup,data,mean)
+  #find means of variable for each age group for Nao
+  means.nao <- aggregate(v.nao~AgeGroup,data,mean) 
+  #find standard error of var for each age group for the machine-like robot
+  se.back <- aggregate(v.back~AgeGroup,data,s.error)
+  #find standard error of var for each age group for the human-like robot
+  se.front <- aggregate(v.front~AgeGroup,data,s.error) 
+  #find standard error of var for each age group for the Nao
+  se.nao <- aggregate(v.nao ~AgeGroup,data,s.error) 
+  
+  #combine means into one matrix
+  means.mat<-matrix(c(means.back$v.back,means.front$v.front,means.nao$v.nao),ncol=4,byrow=T)-1 
+  #combine se into one matrix
+  se.mat<-matrix(c(se.back$v.back,se.front$v.front,se.nao$v.nao),ncol=4,byrow=FALSE)
+  
+  #label the columns by age group
+  colnames(means.mat) <- c('3-5','6-8','9-11','12-18')
+  #label the rows by robot type
+  rownames(means.mat) <- c('Machine-like','Human-like','Nao') 
+  
+  #produce rounded values of the matrix for displaying on the plot
+  means.matR <- round(means.mat,2)
+  
+  #determine y-axis range
+  g.range = range(0,ceiling(max(means.mat)+1)) 
+  
+  plot.new()
+  par(bg = 'white')
+  barCenters <- barplot(means.mat, 
+                        col=c(machineColor,humanColor,naoColor), 
+                        legend = rownames(means.mat), 
+                        beside = TRUE, ylim=g.range, 
+                        yaxt='n',las=1,main=title, 
+                        xlab = "Age (years)", 
+                        cex.main = 2.5, 
+                        cex.lab = responseAxis, 
+                        cex.axis = responseAxis,
+                        bg = plotFill)
+  #change y axis labels
+  axis(2, 
+       at = c(0:3), 
+       labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+       cex.axis = responseAxis) 
+  #add +/- 1 standard error bars
+  arrows(barCenters, 
+         means.mat-se.mat, 
+         barCenters, 
+         means.mat+se.mat,
+         lwd = 3, 
+         length=0.05, 
+         angle=90, 
+         code=3) 
+  #print mean values above each bar
+  #text(barCenters,means.mat+1.5*se.mat+.1,label=means.matR, cex = responseAxis) 
+}
+```
+
+```{r load_file}
+#library Hmisc
+#load SPSS data file
+filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - Data.sav"
+UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F) #label DOB and DOT as date variables and import numerical values not string values for variables
+```
+
+```{r formatting}
+#library plyr
+#exclude orders 3 and where both conditions were presented together (leaving only between subjects for analysis)
+UV.original <- UV.original[UV.original$Order==1|UV.original$Order==2|is.na(UV.original$Order),] 
+
+UV.original = UV.original[which(!is.na(UV.original$SubID)),] #remove empty observations
+
+UV.original$Age = NULL #remove experiementer entered age (will calculate later)
+UV.original$AgeGroup = NULL #remove experiementer entered age (will calculate later)
+UV.original$AgeYear = NULL #remove experiementer entered age (will calculate later)
+UV.original$COMME0 = NULL #remove empty varaible
+names(UV.original)[names(UV.original) == 'VAR00001'] <- 'Comments' #name unnamed variable
+names(UV.original)[names(UV.original) == 'PA11'] <- 'PQ11' #correct name of variable
+
+#original data set was created in long format, the following code converts it to short format
+#each participant had an observation for either the machine-like robot or human-like robot, then they had a set of answers about Nao. This makes sure all answers about robots are included in one observation.
+
+#separate answers about each robot into separate data frames
+UV.Nao <- UV.original[UV.original$Condition==3,] 
+UV.Front <- UV.original[UV.original$Condition==2,] 
+UV.Back <- UV.original[UV.original$Condition==1,] 
+
+#remove empty observations (that would have somehow magically slipped by when I removed them before)
+UV.Nao = UV.Nao[which(!is.na(UV.Nao$SubID)),] 
+UV.Front = UV.Front[which(!is.na(UV.Front$SubID)),] 
+UV.Back = UV.Back[which(!is.na(UV.Back$SubID)),] 
+
+#rename variables for consistency and differentiation for when they are joined back together
+names(UV.Nao) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+#the variables below are typically empty for Nao and not robot specific (they are a parent survey about experience with robots and technology), they can be copied over from UV.Front and UV.Back where they are always filled in
+#if these variables are left in UV.Nao they cause problems with joins later
+#the same subid may have empty data for these variables for the Nao dataset but not the UV.Front or UV.Back datasets, which causes these variables to be incorrectly copied over during the join
+UV.Nao=UV.Nao[,!(names(UV.Nao) %in% c("Sex","DOB","DOT","Order","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments"))]
+
+#rename variables for consistency and differentiation for when they are joined back together
+names(UV.Front) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+#rename variables for consistency and differentiation for when they are joined back together
+names(UV.Back) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+#condition is no longer needed (this information is kept in the variable names)
+UV.Nao$Condition = NULL
+UV.Back$Condition = NULL
+UV.Front$Condition = NULL
+
+UV.NB <- join( UV.Back,UV.Nao ) #combine observations about Nao and observations about the machine-like robot by subject ID
+UV.NF <- join( UV.Front,UV.Nao ) #combine observations about Nao and observations about the machine-like robot by subject ID
+UV.Total <- merge( UV.NB,UV.NF,by="SubID",all.x=T,all.y=T ) #put all the observations together into one data frame
+
+#copy over variables that do not have a ".x" or ".y" on their name
+UV = UV.Total[c("SubID","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")]
+
+#copy over variables with a ".x" or ".y" but remove that from the end of the variable name
+for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")) {
+  
+  UV[[var]] = safe.ifelse(is.na(UV.Total[[paste(var,".x",sep="")]]),
+                          UV.Total[[paste(var,".y",sep="")]],
+                          UV.Total[[paste(var,".x",sep="")]])
+}
+
+```
+
+##Age Breakdown
+```{r calculate_age_variables}
+#library lubridate
+#calculate age of participant in months
+UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interval(UV$DOB, UV$DOT))) + (day(as.period(interval(UV$DOB, UV$DOT)))/30)
+
+#calculate age of participant in years
+UV$AgeYears = UV$Age/12
+
+#separate into four age groups
+UV$AgeGroup = factor(ifelse(UV$Age<72, "1", ifelse(UV$Age<108, "2", ifelse(UV$Age<144, "3", "4"))))
+UV = UV[which(UV$AgeYears>1),]
+
+pander(table(UV$AgeGroup))
+pander(table(UV$AgeGroup,UV$Sex))
+pander(aggregate(UV$AgeYears,list(UV$AgeGroup),mean))
+pander(aggregate(UV$AgeYears,list(UV$AgeGroup),min))
+pander(aggregate(UV$AgeYears,list(UV$AgeGroup),max))
+```
+
+##Factors
+```{r Uncanny_Index, fig.width=18,fig.height=8}
+#calculate creepiness factor for each robot
+UV$UVindex.Back = (UV$UV1.Back+UV$UV2.Back)/2 
+UV$UVindex.Front = (UV$UV1.Front+UV$UV2.Front)/2 
+UV$UVindex.Nao = (UV$UV1.Nao+UV$UV2.Nao)/2
+
+pander(xtabs(~UV$UV1.Nao+UV$AgeGroup))
+barByAge(UV$UVindex.Back,UV$UVindex.Front,UV, "Reports of Creepiness")
+barByAge_3robots(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanniness")
+barByAgeGG(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanniness")
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup==1|UV$AgeGroup==2)],UV$UVindex.Front[which(UV$AgeGroup==1|UV$AgeGroup==2)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup==1|UV$AgeGroup==2)],UV$UVindex.Front[which(UV$AgeGroup==1|UV$AgeGroup==2)])
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup==3)],UV$UVindex.Front[which(UV$AgeGroup==3)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup==3)],UV$UVindex.Front[which(UV$AgeGroup==3)])
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup==4)],UV$UVindex.Front[which(UV$AgeGroup==4)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup==4)],UV$UVindex.Front[which(UV$AgeGroup==4)])
+```
+
+```{r Agency_Index,fig.width=18,fig.height=8}
+#calculate agency factor for each robot (perceptions of agency)
+UV$Agency.Back = (UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/3
+UV$Agency.Front = (UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/3
+UV$Agency.Nao = (UV$IS1.Nao+UV$IS2.Nao+UV$A2.Nao)/3
+
+barByAge_3robots(UV$Agency.Back,UV$Agency.Front,UV$Agency.Nao,UV, "Attributions of Agency")
+barByAgeGG(UV$Agency.Back,UV$Agency.Front,UV$Agency.Nao,UV,"Agency")
+
+t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$Agency.Front)
+
+```
+
+```{r Experience_Index,fig.width=18,fig.height=8}
+#calculate experience factor for each robot (perceptions of experience)
+UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back)/3
+UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front)/3
+UV$Exp.Nao = (UV$IS3.Nao+UV$IS5.Nao+UV$IS6.Nao)/3
+
+#UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back)/2
+#UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front)/2
+
+barByAge_3robots(UV$Exp.Back,UV$Exp.Front,UV$Exp.Nao,UV, "Attributions of Experience")
+barByAgeGG(UV$Exp.Back,UV$Exp.Front,UV$Exp.Nao,UV,"Experience")
+
+```
+
+```{r Mind_Index,fig.width=18,fig.height=8}
+UV$Mind.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back+UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/6
+UV$Mind.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front+UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/6
+UV$Mind.Nao = (UV$IS3.Nao+UV$IS5.Nao+UV$IS6.Front+UV$IS1.Nao+UV$IS2.Nao+UV$A2.Nao)/6
+
+#UV$Mind.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/5
+#UV$Mind.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/5
+barByAgeGG(UV$Mind.Back,UV$Mind.Front,UV$Mind.Nao,UV,"Mind")
+```
+
+##Regressions
+```{r shorten_data}
+#convert data back to long form *I know, shut up* so that we can have one creepiness factor and test the effect of robot and agency and experience factor in one analysis
+UVindex = data.frame(SubID=c(UV$SubID, UV$SubID), 
+                     Age=c(UV$Age,UV$Age), 
+                     AgeYears=c(UV$AgeYears,UV$AgeYears),
+                     AgeGroup=c(UV$AgeGroup,UV$AgeGroup), 
+                     Robot=c(rep('Kaspar Back',dim(UV)[1]),rep('Kaspar Front',dim(UV)[1])), 
+                     UV=c(UV$UVindex.Back,UV$UVindex.Front), 
+                     Agency=c(UV$Agency.Back,UV$Agency.Front), 
+                     Exp=c(UV$Exp.Back,UV$Exp.Front),
+                     Mind=c(UV$Mind.Back,UV$Mind.Front)) 
+
+
+#remove participants with no creepiness factor
+UVindex=UVindex[which(!is.na(UVindex$UV)),]
+
+#because agency and experience index are correlated, center them for regression analyses to decrease the problem of multicollinearity
+UVindex$UV.c = scale(UVindex$UV,center=T,scale=T)
+UVindex$Agency.c = scale(UVindex$Agency,center=T,scale=T)
+UVindex$Exp.c = scale(UVindex$Exp,center=T,scale=T)
+UVindex$Age.c = scale(UVindex$Age,center=T,scale=T)
+UVindex$Mind.c = scale(UVindex$Mind,center=T,scale=T)
+
+UVindex$Robot.n = ifelse(UVindex$Robot=='Kaspar Back', -.5, .5)
+UVindex$RxA = UVindex$Robot.n*UVindex$Age.c
+UVindex$Age2 = UVindex$Age.c^2
+UVindex$AgeRoot = log(UVindex$Age.c)
+UVindex$RxA2= UVindex$Robot.n*UVindex$Age^2
+UVindex$Mind2 = UVindex$Mind.c^2
+
+UVindex.young = UVindex[which(UVindex$Age < 108),]
+UVindex.old = UVindex[which(UVindex$Age >= 108),]
+```
+
+```{r regressions}
+
+lm.out = lm(UV~Robot*AgeRoot+Robot*Age.c,data=UVindex)
+lm.beta(lm.out)
+summary(lm.out)
+```
+
+
+```{r moderation}
+#model 4
+#Y = UV
+#moderator = Age
+#X = Robot
+
+model <- '
+  ## Direct effects
+  UV ~ c1*Robot.n
+  UV ~ b1*Age.c
+  UV ~ b2*RxA
+  '
+
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r basic_mediation_Robot}
+#model 4
+#Y = UV
+#mediator = Mind.c
+#X = Robot
+
+model <- '
+  ## Direct effects
+  UV ~ c1*Robot.n
+  ## Indirect effects
+  Exp.c ~ a1*Robot.n
+  UV ~ b1*Exp.c
+
+  ## Indirect effect of Robot on UV
+  IEXY := a1*b1
+  '
+
+fit <- sem(model, data = UVindex.old)
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r basic_mediation_Robot}
+#model 4
+#Y = UV
+#mediator = Mind.c
+#X = Robot
+
+model <- '
+  ## Direct effects
+  UV ~ c1*Robot.n + cov1*Age.c
+  ## Indirect effects
+  Agency.c ~ a1*Robot.n + cov2*Age.c
+  UV ~ b1*Agency.c
+
+  ## Indirect effect of Robot on UV
+  IEXY := a1*b1
+  '
+
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r basic_mediation_Age}
+#model 4
+#Y = UV
+#mediator = Mind.c
+#X = Age.c
+
+model <- '
+  ## Direct effects
+  UV ~ c1*Age.c
+  ## Indirect effects
+  Mind.c ~ a1*Age.c
+  UV ~ b1*Mind.c
+
+  ## Indirect effect of Robot on UV
+  IEXY := a1*b1
+  '
+
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r moderated_mediation}
+#model 4
+#Y = UV
+#mediator = Mind.c
+#X = Age.c
+
+
+model <- '
+  ## Direct effects
+  UV ~ c1*Age.c
+  UV ~ cov*Robot.n
+  ## Indirect effects
+  Mind.c ~ a1*Age.c
+  Mind.c ~ a2*Robot.n
+  Mind.c ~ a3*RxA
+  UV ~ b1*Mind.c
+
+  ## Conditional indirect effect of Age on UV
+  CIEXYback := (a1+a3*-.5)*b1
+  CIEXYfront := (a1+a3*.5)*b1
+  '
+
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```

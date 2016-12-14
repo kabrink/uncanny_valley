@@ -33,7 +33,7 @@ Human-likeness 1: Is this robot like a human?
 Exploratory 1: Does the robot know it's a robot?
 
 ```{r global_options, include=FALSE}
-knitr::opts_chunk$set(fig.path='Manuscript Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, echo=FALSE, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(fig.path='Manuscript Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, fig.keep='last', echo=FALSE, warning=FALSE, message=FALSE)
 ```
 
 ```{r load_libraries}
@@ -44,6 +44,15 @@ library(pander) #for displaying tables
 library(bda) #for mediation testing
 library(car) #anova
 library(QuantPsyc)
+library(lsr)
+library(reshape2) #melt
+#library(extrafont)
+#library(showtext)
+#font_import(pattern="[T/t]w Cen MT",prompt=FALSE)
+#loadfonts(device="postscript")
+
+#font.add("Tw Cen MT", regular = "Tw Cen MT.ttf",
+#    bold = "Tw Cen MT Bold.ttf", italic = "Tw Cen MT Italic.ttf", bolditalic = "Tw Cen MT Bold Italic.ttf")
 ```
 
 ```{r standard_error}
@@ -110,9 +119,9 @@ part.cor <- function(x, y, z){
 responseAxis <- 1.3 #
 responseAxis2 <- 1.9
 ageAxis <- 2 
-humanColor = 'red' #color of bars and points for human-like robot
-machineColor = 'darkblue' #color of bars and points for machine-like robot
-naoColor = 'yellow' #color of bars and points for Nao
+humanColor =  rgb(146/255, 87/255, 160/255)#'dimgray' #color of bars and points for human-like robot
+machineColor = rgb(140/255, 197/255, 69/255)#'lightgray' #color of bars and points for machine-like robot
+naoColor = rgb(248/255, 154/255, 52/255)#'white' #color of bars and points for Nao
 plotFill = 'white' #background of plot
 titleSize = 3 #size of main label
 titleSizeSmall = 2
@@ -142,7 +151,7 @@ barByAge <-function(v.back,v.front,data,title){
   se.mat<-matrix(c(se.back$v.back,se.front$v.front),ncol=4,byrow=FALSE) #combine se into one matrix
   
   #label the columns by age group
-  colnames(means.mat) <- c('3-5','6-8','9-11','12-17')
+  colnames(means.mat) <- c('3-5','6-8','9-11','12-18')
   #label the rows by robot type
   rownames(means.mat) <- c('Machine-like','Human-like')
   
@@ -180,10 +189,77 @@ barByAge <-function(v.back,v.front,data,title){
          angle=90, 
          code=3) 
   #print mean values above each bar
-  text(barCenters,
-       means.mat+1.5*se.mat+.1,
-       label=means.matR, 
-       cex = responseAxis) 
+  #text(barCenters,
+  #     means.mat+1.5*se.mat+.1,
+  #     label=means.matR, 
+  #     cex = responseAxis) 
+}
+```
+
+```{r barByAgeGG_function}
+barByAgeGG <-function(v.back,v.front,v.nao,data,title){
+  #find means of var for each age group for the machine-like robot
+  means.back <- aggregate(v.back~AgeGroup,data,mean)
+  #find means of variable for each age group for the human-like robot
+  means.front <- aggregate(v.front~AgeGroup,data,mean) 
+  #find means of variable for each age group for the human-like robot
+  means.nao <- aggregate(v.nao~AgeGroup,data,mean) 
+  
+  #find standard error of var for each age group for the machine-like robot
+  se.back <- aggregate(v.back~AgeGroup,data,s.error) 
+  #find standard error of var for each age group for the human-like robot
+  se.front <- aggregate(v.front~AgeGroup,data,s.error) 
+  #find standard error of var for each age group for the human-like robot
+  se.nao <- aggregate(v.nao~AgeGroup,data,s.error) 
+  
+  means.mat<-matrix(c(means.back$v.back,means.front$v.front,means.nao$v.nao),
+                    ncol=4,
+                    byrow=T)-1 #combine means into one matrix
+  se.mat<-matrix(c(se.back$v.back,se.front$v.front,se.nao$v.nao),
+                 ncol=4,
+                 byrow=FALSE) #combine se into one matrix
+  
+  #label the columns by age group
+  colnames(means.mat) <- c('3-5','6-8','9-11','12-18')
+  colnames(se.mat) <- c('3-5','6-8','9-11','12-18')
+
+  #label the rows by robot type
+  rownames(means.mat) <- c('Machine-like','Human-like','Nao')
+  rownames(se.mat) <- c('Machine-like','Human-like','Nao')
+
+  #produce rounded values of the matrix for displaying on the plot
+  means.matR <- round(means.mat,2) 
+
+  plotData = melt(means.matR)
+  seData = melt(se.mat)
+  
+  names(plotData) = c("Robot","Age Group",title)
+  names(seData) = c("Robot","Age Group","SE")
+  #title = plotData$
+
+  plotData = join(plotData,seData)
+  
+  p = ggplot(data = plotData, aes(x = `Age Group`, y = plotData[title], fill = Robot))
+ # p = p + guides(fill=guide_legend(margin=.1))
+  p = p + geom_bar(width = .65, position=position_dodge(), stat="identity")
+  p = p + geom_errorbar(aes(ymin=plotData[title]-SE, ymax=plotData[title]+SE),
+                        width=.2,
+                        size = 2, # Width of the error bars
+                        position=position_dodge(.65))
+  p = p + labs(x="Age (years)",y=title)
+  p = p + theme(text = element_text(size=36,family="Tw Cen MT"), 
+                axis.text.x = element_text(size=24),
+                axis.title.x = element_text(margin=margin(0,0,20,0)),
+                axis.text.y=element_text(angle=90, hjust=.5, size=24),
+                axis.title.y=element_text(margin=margin(0,20,0,0)),
+                legend.background = element_rect(),
+                legend.key.size = unit(2, "cm"))
+  p = p + scale_y_continuous(limits = c(0,2.5),
+                         breaks=0:3,
+                         labels=c('Not at all', 'A little bit', 'A medium amount', 'A lot'),
+                         expand = waiver())
+  p
+  
 }
 ```
 
@@ -211,7 +287,7 @@ barByAge_3robots <-function(v.back,v.front,v.nao,data,title){
   se.mat<-matrix(c(se.back$v.back,se.front$v.front,se.nao$v.nao),ncol=4,byrow=FALSE)
   
   #label the columns by age group
-  colnames(means.mat) <- c('3-5','6-8','9-11','12-17')
+  colnames(means.mat) <- c('3-5','6-8','9-11','12-18')
   #label the rows by robot type
   rownames(means.mat) <- c('Machine-like','Human-like','Nao') 
   
@@ -222,6 +298,7 @@ barByAge_3robots <-function(v.back,v.front,v.nao,data,title){
   g.range = range(0,ceiling(max(means.mat)+1)) 
   
   plot.new()
+  par(bg = 'white')
   barCenters <- barplot(means.mat, 
                         col=c(machineColor,humanColor,naoColor), 
                         legend = rownames(means.mat), 
@@ -230,11 +307,12 @@ barByAge_3robots <-function(v.back,v.front,v.nao,data,title){
                         xlab = "Age (years)", 
                         cex.main = 2.5, 
                         cex.lab = responseAxis, 
-                        cex.axis = responseAxis)
+                        cex.axis = responseAxis,
+                        bg = plotFill)
   #change y axis labels
   axis(2, 
        at = c(0:3), 
-       labels = c('', 'A little bit', 'A medium amount', 'A lot'), 
+       labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
        cex.axis = responseAxis) 
   #add +/- 1 standard error bars
   arrows(barCenters, 
@@ -320,7 +398,7 @@ for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao",
 
 ```
 
-
+##Age Breakdown
 ```{r calculate_variables}
 #library lubridate
 #calculate age of participant in months
@@ -335,9 +413,9 @@ UV = UV[which(UV$AgeYears>1),]
 
 pander(table(UV$AgeGroup))
 pander(table(UV$AgeGroup,UV$Sex))
-pander(aggregate(UV$Age,list(UV$AgeGroup),mean))
-pander(aggregate(UV$Age,list(UV$AgeGroup),min))
-pander(aggregate(UV$Age,list(UV$AgeGroup),max))
+pander(aggregate(UV$AgeYears,list(UV$AgeGroup),mean))
+pander(aggregate(UV$AgeYears,list(UV$AgeGroup),min))
+pander(aggregate(UV$AgeYears,list(UV$AgeGroup),max))
 
 
 ```
@@ -359,23 +437,7 @@ screeplot.factanal(efa.QB)
 
 #display factor loadings
 efa.QB <- factanal(na.omit(UV[Q.Back]), 3, rotation="promax",scores="regression")
-print(efa.QB, digits=2, cutoff=.3, sort=TRUE)
-```
-
-```{r EFA_Front_1}
-#factor analysis with all variables for human-like robot
-Q.Front <- c("UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front", "IS5.Front","IS6.Front","E1.Front","HL1.Front")
-
-#remove variables incrementally that do not load or cross load and run analysis again
-#Q.Front <- c("UV1.Front","UV2.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front","HL1.Front")
-
-#create scree plot
-efa.QF <- factanal(na.omit(UV[Q.Front]), 4, rotation="promax",scores="regression")
-screeplot.factanal(efa.QF)
-
-#display factor loadings
-efa.QF <- factanal(na.omit(UV[Q.Front]), 3, rotation="promax",scores="regression")
-print(efa.QF, digits=2, cutoff=.3, sort=TRUE)
+print(efa.QB, digits=2, sort=TRUE)
 ```
 
 ```{r EFA_Back_2}
@@ -388,7 +450,7 @@ screeplot.factanal(efa.QB)
 
 #display factor loadings
 efa.QB <- factanal(na.omit(UV[Q.Back]), 3, rotation="promax",scores="regression")
-print(efa.QB, digits=2, cutoff=.3, sort=TRUE)
+print(efa.QB, digits=2, sort=TRUE)
 
 #create three factors
 back.factor1 <- c("IS1.Back","IS2.Back","A2.Back") #think, moral, choose 
@@ -412,6 +474,22 @@ This left three factors: Factor 1 (think, moral, choose) with loadings greater t
 ##Exploratory factor analysis for Kaspar Front
 Factor analysis with nonorthogonal promax rotation
 
+```{r EFA_Front_1}
+#factor analysis with all variables for human-like robot
+Q.Front <- c("UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front", "IS5.Front","IS6.Front","E1.Front","HL1.Front")
+
+#remove variables incrementally that do not load or cross load and run analysis again
+#Q.Front <- c("UV1.Front","UV2.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front","HL1.Front")
+
+#create scree plot
+efa.QF <- factanal(na.omit(UV[Q.Front]), 4, rotation="promax",scores="regression")
+screeplot.factanal(efa.QF)
+
+#display factor loadings
+efa.QF <- factanal(na.omit(UV[Q.Front]), 3, rotation="promax",scores="regression")
+print(efa.QF, digits=2, sort=TRUE)
+```
+
 ```{r EFA_Front_2}
 #Run factor analysis with final set of variables
 Q.Front <- c("UV1.Front","UV2.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front")
@@ -422,7 +500,7 @@ screeplot.factanal(efa.QF)
 
 #display factor loadings
 efa.QF <- factanal(na.omit(UV[Q.Front]), 3, rotation="promax",scores="regression")
-print(efa.QF, digits=2, cutoff=.3, sort=TRUE)
+print(efa.QF, digits=2, sort=TRUE)
 
 #create recommended factors
 front.factor1 <- c("IS3.Front","IS5.Front","IS6.Front") #pain,fear,hunger 
@@ -439,7 +517,111 @@ After considering Kaiser’s criterion (eigenvalues ≥ 1), a scree plot, and mo
 
 This left three factors: Factor 1 (pain, fear, hunger) with loadings greater than 0.75, $\alpha =$ `r round(a.front.factor1$total[1],2)`, Factor 2 (think, choose, moral, aware) with loadings greater than 0.4, $\alpha =$ `r round(a.front.factor2$total[1],2)`, and Factor 3 (creepy, weird) with loadings greater than 0.75,  $\alpha =$ `r round(a.front.factor3$total[1],2)`.
 
-```{r Uncanny_Index}
+##EFA by Age group
+###EFA for front younger
+
+```{r UV_by_age}
+UV.old = UV[which(UV$Age<108),]
+UV.young = UV[which(UV$Age>=108),]
+```
+
+```{r EFA_Front_younger, eval=FALSE}
+#Run factor analysis with final set of variables
+Q.Front <- c("UV1.Front","UV2.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front")
+
+#create scree plot
+efa.QF <- factanal(na.omit(UV.young[Q.Front]), 4, rotation="promax",scores="regression")
+screeplot.factanal(efa.QF)
+
+#display factor loadings
+efa.QF <- factanal(na.omit(UV.young[Q.Front]), 3, rotation="promax",scores="regression")
+print(efa.QF, digits=2, sort=TRUE)
+
+#create recommended factors
+front.factor1 <- c("IS3.Front","IS5.Front","IS6.Front") #pain,fear,hunger 
+front.factor2 <- c("IS1.Front","A2.Front", "IS2.Front") #think, moral, choose
+front.factor3 <- c("UV1.Front","UV2.Front")
+
+#calculate alpha for each factor
+a.front.factor1 = psych::alpha(UV.young[front.factor1]) #alpha = .86
+a.front.factor2 = psych::alpha(UV.young[front.factor2]) #alpha = .66
+a.front.factor3 = psych::alpha(UV.young[front.factor3]) #alpha = .75
+```
+
+###EFA for front older
+```{r EFA_Front_older, eval=FALSE}
+#Run factor analysis with final set of variables
+Q.Front <- c("UV1.Front","UV2.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front")
+
+#create scree plot
+efa.QF <- factanal(na.omit(UV.old[Q.Front]), 4, rotation="promax",scores="regression")
+screeplot.factanal(efa.QF)
+
+#display factor loadings
+efa.QF <- factanal(na.omit(UV.old[Q.Front]), 3, rotation="promax",scores="regression")
+print(efa.QF, digits=2, sort=TRUE)
+
+#create recommended factors
+front.factor1 <- c("IS3.Front","IS5.Front","IS6.Front") #pain,fear,hunger 
+front.factor2 <- c("IS1.Front","A2.Front", "IS2.Front") #think, moral, choose
+front.factor3 <- c("UV1.Front","UV2.Front")
+
+#calculate alpha for each factor
+a.front.factor1 = psych::alpha(UV.old[front.factor1]) #alpha = .86
+a.front.factor2 = psych::alpha(UV.old[front.factor2]) #alpha = .66
+a.front.factor3 = psych::alpha(UV.old[front.factor3]) #alpha = .75
+```
+
+###EFA for back younger
+```{r EFA_Back_younger, eval=FALSE}
+#Run factor analysis with final set of variables
+Q.Back <- c("UV1.Back","UV2.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS5.Back","IS6.Back")
+
+#create scree plot
+efa.QB <- factanal(na.omit(UV.young[Q.Back]), 4, rotation="promax",scores="regression")
+screeplot.factanal(efa.QB)
+
+#display factor loadings
+efa.QB <- factanal(na.omit(UV.young[Q.Back]), 3, rotation="promax",scores="regression")
+print(efa.QB, digits=2, sort=TRUE)
+
+#create three factors
+back.factor1 <- c("IS1.Back","IS2.Back","A2.Back") #think, moral, choose 
+back.factor2 <- c("IS3.Back","IS5.Back","IS6.Back") #pain,fear,hunger 
+back.factor3 <- c("UV1.Back","UV2.Back")
+
+#calculate alpha for each factor
+a.back.factor1 = psych::alpha(UV.young[back.factor1]) #alpha = 0.77
+a.back.factor2 = psych::alpha(UV.young[back.factor2]) #alpha = 0.73
+a.back.factor3 = psych::alpha(UV.young[back.factor3],check.keys=TRUE) #alpha = 0.7
+```
+
+###EFA for back older
+```{r EFA_Back_older, eval=FALSE}
+#Run factor analysis with final set of variables
+Q.Back <- c("UV1.Back","UV2.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS5.Back","IS6.Back")
+
+#create scree plot
+efa.QB <- factanal(na.omit(UV.old[Q.Back]), 4, rotation="promax",scores="regression")
+screeplot.factanal(efa.QB)
+
+#display factor loadings
+efa.QB <- factanal(na.omit(UV.old[Q.Back]), 3, rotation="promax",scores="regression")
+print(efa.QB, digits=2, sort=TRUE)
+
+#create three factors
+back.factor1 <- c("IS1.Back","IS2.Back","A2.Back") #think, moral, choose 
+back.factor2 <- c("IS3.Back","IS5.Back","IS6.Back") #pain,fear,hunger 
+back.factor3 <- c("UV1.Back","UV2.Back")
+
+#calculate alpha for each factor
+a.back.factor1 = psych::alpha(UV.old[back.factor1]) #alpha = 0.77
+a.back.factor2 = psych::alpha(UV.old[back.factor2]) #alpha = 0.73
+a.back.factor3 = psych::alpha(UV.old[back.factor3],check.keys=TRUE) #alpha = 0.7
+```
+
+##Factors
+```{r Uncanny_Index, fig.width=18,fig.height=8}
 #calculate creepiness factor for each robot
 UV$UVindex.Back = (UV$UV1.Back+UV$UV2.Back)/2 
 UV$UVindex.Front = (UV$UV1.Front+UV$UV2.Front)/2 
@@ -447,45 +629,57 @@ UV$UVindex.Nao = (UV$UV1.Nao+UV$UV2.Nao)/2
 
 pander(xtabs(~UV$UV1.Nao+UV$AgeGroup))
 barByAge(UV$UVindex.Back,UV$UVindex.Front,UV, "Reports of Creepiness")
-barByAge_3robots(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanny Index")
-  
-pander(t.test(UV[which(UV$AgeGroup==1),]$UVindex.Back,UV[which(UV$AgeGroup==1),]$UVindex.Front))
-pander(t.test(UV[which(UV$AgeGroup==2),]$UVindex.Back,UV[which(UV$AgeGroup==2),]$UVindex.Front))
-pander(t.test(UV[which(UV$AgeGroup==3),]$UVindex.Back,UV[which(UV$AgeGroup==3),]$UVindex.Front))
-pander(t.test(UV[which(UV$AgeGroup==4),]$UVindex.Back,UV[which(UV$AgeGroup==4),]$UVindex.Front))
+barByAge_3robots(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanniness")
+barByAgeGG(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanniness")
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup==1|UV$AgeGroup==2)],UV$UVindex.Front[which(UV$AgeGroup==1|UV$AgeGroup==2)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup==1|UV$AgeGroup==2)],UV$UVindex.Front[which(UV$AgeGroup==1|UV$AgeGroup==2)])
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup==3)],UV$UVindex.Front[which(UV$AgeGroup==3)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup==3)],UV$UVindex.Front[which(UV$AgeGroup==3)])
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup==4)],UV$UVindex.Front[which(UV$AgeGroup==4)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup==4)],UV$UVindex.Front[which(UV$AgeGroup==4)])
 ```
 
-
-```{r Agency_Index}
+```{r Agency_Index,fig.width=18,fig.height=8}
 #calculate agency factor for each robot (perceptions of agency)
 UV$Agency.Back = (UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/3
 UV$Agency.Front = (UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/3
+UV$Agency.Nao = (UV$IS1.Nao+UV$IS2.Nao+UV$A2.Nao)/3
 
-barByAge(UV$Agency.Back,UV$Agency.Front,UV, "Attributions of Agency")
-pander(t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$Agency.Front))
+barByAge_3robots(UV$Agency.Back,UV$Agency.Front,UV$Agency.Nao,UV, "Attributions of Agency")
+barByAgeGG(UV$Agency.Back,UV$Agency.Front,UV$Agency.Nao,UV,"Agency")
+
+t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$Agency.Front)
 
 ```
 
-```{r Experience_Index}
+```{r Experience_Index,fig.width=18,fig.height=8}
 #calculate experience factor for each robot (perceptions of experience)
 UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back)/3
 UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front)/3
+UV$Exp.Nao = (UV$IS3.Nao+UV$IS5.Nao+UV$IS6.Nao)/3
 
 #UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back)/2
 #UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front)/2
 
-barByAge(UV$Exp.Back,UV$Exp.Front,UV, "Perceptions of Experience")
+barByAge_3robots(UV$Exp.Back,UV$Exp.Front,UV$Exp.Nao,UV, "Attributions of Experience")
+barByAgeGG(UV$Exp.Back,UV$Exp.Front,UV$Exp.Nao,UV,"Experience")
+
 ```
 
-```{r Mind_Index}
+```{r Mind_Index,fig.width=18,fig.height=8}
 UV$Mind.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back+UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/6
 UV$Mind.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front+UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/6
+UV$Mind.Nao = (UV$IS3.Nao+UV$IS5.Nao+UV$IS6.Front+UV$IS1.Nao+UV$IS2.Nao+UV$A2.Nao)/6
 
 #UV$Mind.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/5
 #UV$Mind.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/5
-
+barByAgeGG(UV$Mind.Back,UV$Mind.Front,UV$Mind.Nao,UV,"Mind")
 ```
 
+##Correlations
 ```{r correlations}
 #assess correlations between the factors
 cor.test(UV$UVindex.Back,UV$Agency.Back)
@@ -537,7 +731,8 @@ part.cor(UV.old$Agency.Back,UV.old$Exp.Back, UV.old$Age)
 part.cor(UV.old$Agency.Front,UV.old$Exp.Front, UV.old$Age)
 ```
 
-```{r regressions}
+##ANOVAs
+```{r ANOVA}
 #convert data back to long form *I know, shut up* so that we can have one creepiness factor and test the effect of robot and agency and experience factor in one analysis
 UVindex = data.frame(SubID=c(UV$SubID, UV$SubID), 
                      Age=c(UV$Age,UV$Age), 
@@ -548,6 +743,7 @@ UVindex = data.frame(SubID=c(UV$SubID, UV$SubID),
                      Agency=c(UV$Agency.Back,UV$Agency.Front), 
                      Experience=c(UV$Exp.Back,UV$Exp.Front),
                      Mind=c(UV$Mind.Back,UV$Mind.Front)) 
+
 
 #remove participants with no creepiness factor
 UVindex=UVindex[which(!is.na(UVindex$UVindex)),]
@@ -574,11 +770,22 @@ UVindex$AgeGroup2 = ifelse(UVindex$AgeGroup==1|UVindex$AgeGroup==2,1,2)
 # pander(Anova(lm(UVindex~Robot+AgeGroup+Robot*AgeGroup,
 #                    data=UVindex), type='II'))
 
+
+write.csv(UVindex, '~/Desktop/UVindex.csv')
+
 pander(Anova(lm(UVindex~Robot+AgeGroup2+Robot*AgeGroup2,
                    data=UVindex), type='III'))
 
+aov.out = aov(UVindex~Robot+AgeGroup2+Robot*AgeGroup2,
+              data=UVindex)
+
+etaSquared(aov.out, type=3, anova=T)
+
 pander(Anova(lm(UVindex~Robot+AgeGroup2+Robot*AgeGroup2,
                    data=UVindex), type='II'))
+
+etaSquared(aov.out, type=2, anova=T)
+
 
 # pander(Anova(lm(UVindex~Robot+AgeGroup3+Robot*AgeGroup3,
 #                    data=UVindex), type='III'))
@@ -601,36 +808,47 @@ pander(Anova(lm(UVindex~Robot+AgeGroup2+Robot*AgeGroup2,
 # pander(summary(lm(UVindex.Nao~Age, data=UV)))
 ```
 
-```{r young_vs_old}
+##Regression
+```{r regressions}
 #divide participants into groups based on when the Uncanny Valley effect appears (groups 3 & 4 show effect, groups 1 & 2 do not)
 UVindex.old = UVindex[which(UVindex$AgeGroup>2),]
 UVindex.young = UVindex[which(UVindex$AgeGroup<3),]
 
 
 t.test(UVindex~Robot,data=UVindex.young)
+#sqrt((UVindex.young$UVindex[UVindex.young$Robot=='Kaspar Back'])^2 + ((UVindex.young$UVindex[UVindex.young$Robot=='Kaspar Front'])^2)/2)
 
-pander(t.test(UVindex~Robot,data=UVindex[which(UVindex$AgeGroup==3),]))
+t.test(UVindex~Robot,data=UVindex[which(UVindex$AgeGroup==3),])
+#sqrt((UVindex.young$UVindex[UVindex.young$Robot=='Kaspar Back'])^2 + ((UVindex.young$UVindex[UVindex.young$Robot=='Kaspar Front'])^2)/2)
 
-pander(t.test(UVindex~Robot,data=UVindex[which(UVindex$AgeGroup==4),]))
+t.test(UVindex~Robot,data=UVindex[which(UVindex$AgeGroup==4),])
+#sqrt((UVindex.young$UVindex[UVindex.young$Robot=='Kaspar Back'])^2 + ((UVindex.young$UVindex[UVindex.young$Robot=='Kaspar Front'])^2)/2)
 
 #regression analyses to predict creepiness factor
-lm.out = lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,
+lm.out = lm(UVindex~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,
             data=UVindex)
 
-pander(summary(lm.out))
+pander(summary(lm.out), caption = "full sample regression")
 
-pander(lm.beta(lm.out))
+pander(lm.beta(lm.out), caption = "beta estimates of full sample regression")
 
-pander(summary(lm(UVindex.cent~Mind.cent+Age+Robot+Mind.cent*Age,
+pander(summary(lm(UVindex~Agency.cent,data=UVindex)), caption = "R2 for agency")
+
+pander(summary(lm(UVindex~Mind.cent+Age+Robot+Mind.cent*Age,
                   data=UVindex)))
 
 #look at whether different predictors are significant for the older children where the uncanny effect exists.
-lm.out = lm(UVindex.cent~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,
+lm.out = lm(UVindex~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,
             data=UVindex.old)
-pander(summary(lm.out))
-pander(lm.beta(lm.out))
 
-pander(summary(lm(UVindex.cent~Mind.cent+Age+Robot+Mind.cent*Age,
+pander(summary(lm.out), caption="Older sample regression")
+
+pander(lm.beta(lm.out), caption="Beta estimates of older sample regression")
+
+pander(summary(lm(UVindex~Exp.cent*Age,data=UVindex.old)), caption = "R2 for exp*age")
+
+
+pander(summary(lm(UVindex~Mind.cent+Age+Robot+Mind.cent*Age,
                   data=UVindex.old)))
 ```
 
@@ -705,7 +923,7 @@ legend('topright',
 #library(bda)
 #mediator variable: mv = expindex
 #ndependent variable: iv = robot
-#dependent variable: dv = uncanny index
+#dependent variable: dv = Uncanniness
 
 #test for replication of adult data with only older children
 pander(mediation.test(mv=UVindex.old$Exp.cent,
@@ -772,7 +990,7 @@ Step 4: To establish that M completely mediates the X-Y relationship, the effect
 
 ### Baron & Kenny Mediation
 ```{r BaronKenny_mediation_experience}
-#Find a mediation test, where experience mediates the effect of robot type on uncanny index while controlling for age.
+#Find a mediation test, where experience mediates the effect of robot type on Uncanniness while controlling for age.
 
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
@@ -848,7 +1066,7 @@ plot(KasparFront$Experience,
      jitter(KasparFront$UVindex), 
      main = "Mediation Plot", 
      xlab = 'Experience', 
-     ylab="Uncanny Index", 
+     ylab="Uncanniness", 
      yaxt = 'n', 
      xaxt = 'n', 
      col = humanColor, 
@@ -903,7 +1121,7 @@ Step 3: Show that the mediator affects the outcome variable
 Step 4: To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero
 
 ```{r BaronKenny_mediation_experience_old}
-#Find a mediation test, where experience mediates the effect of robot type on uncanny index while controlling for age.
+#Find a mediation test, where experience mediates the effect of robot type on Uncanniness while controlling for age.
 
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
@@ -982,7 +1200,7 @@ plot(KasparFront$Experience,
      jitter(KasparFront$UVindex), 
      main = "Mediation Plot", 
      xlab = 'Experience', 
-     ylab="Uncanny Index", 
+     ylab="Uncanniness", 
      yaxt = 'n', 
      xaxt = 'n', 
      col = humanColor, 
@@ -1055,7 +1273,7 @@ Step 4: To establish that M completely mediates the X-Y relationship, the effect
 ###Baron & Kenny Mediation
 
 ```{r BaronKenny_mediation_agency}
-#Find a mediation test, where experience mediates the effect of robot type on uncanny index while controlling for age.
+#Find a mediation test, where experience mediates the effect of robot type on Uncanniness while controlling for age.
 
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
@@ -1132,7 +1350,7 @@ plot(jitter(KasparFront$Agency),
      jitter(KasparFront$UVindex), 
      main = "Reports of Creepiness", 
      xlab = 'Agency', 
-     ylab="Uncanny Index", 
+     ylab="Uncanniness", 
      yaxt = 'n', 
      xaxt = 'n', 
      col = humanColor, 
@@ -1176,7 +1394,7 @@ legend('topright',
 #library(bda)
 #mediator variable: mv = mind
 #ndependent variable: iv = robot
-#dependent variable: dv = uncanny index
+#dependent variable: dv = Uncanniness
 
 #test for replication of adult data with only older children
 pander(mediation.test(mv=UVindex.old$Mind.cent,
@@ -1253,7 +1471,7 @@ Step 3: Show that the mediator affects the outcome variable
 Step 4: To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero
 
 ```{r BaronKenny_mediation_mind}
-#Find a mediation test, where experience mediates the effect of robot type on uncanny index while controlling for age.
+#Find a mediation test, where experience mediates the effect of robot type on Uncanniness while controlling for age.
 
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
@@ -1293,6 +1511,9 @@ b = eq2$coefficients[["Mind.cent"]]
 var.b = (summary(eq2)$coef[,'Std. Error'][['Mind.cent']])^2
 n.b = length(resid(eq2))
 
+lm.beta(lm(UVindex~Mind.cent+Robot+Age.cent,
+         data=UVindex))
+
 #Equation 3
 eq3 = lm(Mind.cent~Robot+Age.cent,
          data=UVindex)
@@ -1301,6 +1522,8 @@ a = eq3$coefficients[["RobotKaspar Front"]]
 var.a = (summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']])^2
 n.a = length(resid(eq3))
 
+lm.beta(lm(Mind.cent~Robot+Age.cent,
+         data=UVindex))
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
 #variance of the roduct of two independent random variables (Goodman, 1960)
@@ -1324,12 +1547,12 @@ KasparFront = UVindex[ which( UVindex$Robot=="Kaspar Front"), ]
 KasparBack = UVindex[ which( UVindex$Robot=="Kaspar Back"), ]
 
 plot.new()
-par(mar=c(5,5,5,5)+0.1)
+par(mar=c(5,5,5,5)+0.1,bg='white')
 plot(KasparFront$Mind, 
      jitter(KasparFront$UVindex), 
-     main = "Mediation Plot", 
+     main = "Mediation by Attributions of Mind \n when controlling for age", 
      xlab = 'Mind', 
-     ylab="Uncanny Index", 
+     ylab="Uncanniness", 
      yaxt = 'n', 
      xaxt = 'n', 
      col = humanColor, 
@@ -1384,7 +1607,7 @@ Step 3: Show that the mediator affects the outcome variable
 Step 4: To establish that M completely mediates the X-Y relationship, the effect of X on Y controlling for M (path c') should be zero
 
 ```{r BaronKenny_mediation_mind_old}
-#Find a mediation test, where experience mediates the effect of robot type on uncanny index while controlling for age.
+#Find a mediation test, where experience mediates the effect of robot type on Uncanniness while controlling for age.
 
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
@@ -1464,7 +1687,7 @@ plot(KasparFront$Mind,
      jitter(KasparFront$UVindex), 
      main = "Mediation Plot", 
      xlab = 'Mind', 
-     ylab="Uncanny Index", 
+     ylab="Uncanniness", 
      yaxt = 'n', 
      xaxt = 'n', 
      col = humanColor, 
@@ -1533,9 +1756,461 @@ UV.young = UV[which(UV$AgeGroup==1|UV$AgeGroup==2),]
 UV.9to11 = UV[which(UV$AgeGroup==3),]
 UV.old = UV[which(UV$AgeGroup==4),]
 
-t.test(UV.young$UVindex.Back,UV.young$UVindex.Nao,paired = T)
-t.test(UV.9to11$UVindex.Back,UV.9to11$UVindex.Nao,paired = T)
-t.test(UV.old$UVindex.Back,UV.old$UVindex.Nao,paired = T)
+t.test(UV.young$UVindex.Back,UV.young$UVindex.Nao, paired = T)
+cohensD(UV.young$UVindex.Back,UV.young$UVindex.Nao, method='paired')
+
+t.test(UV.9to11$UVindex.Back,UV.9to11$UVindex.Nao, paired = T)
+cohensD(UV.9to11$UVindex.Back,UV.9to11$UVindex.Nao, method='paired')
+
+t.test(UV.old$UVindex.Back,UV.old$UVindex.Nao, paired = T)
+cohensD(UV.old$UVindex.Back,UV.old$UVindex.Nao, method='paired')
+
 ```
 
+###Mediation - Lavaan Package
+Mediation of mind
+```{r mediation_mind_lavaan}
+library(lavaan)
 
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c1*RobotN
+  #mediator
+  Mind.cent ~ a1*RobotN
+  UVindex ~ b*Mind.cent
+
+  ## Condition effect of X on M at specified levels of W
+  ab := a1*b
+  total := ab + c1
+'
+
+fit <- sem(model, data = UVindex)
+summary(fit)
+ 
+```
+
+Mediation of agency
+```{r mediation_agency_lavaan}
+library(lavaan)
+
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c1*RobotN
+  #mediator
+  Agency.cent ~ a1*RobotN
+  UVindex ~ b*Agency.cent
+
+  ## Condition effect of X on M at specified levels of W
+  ab := a1*b
+  total := ab + c1
+'
+
+fit <- sem(model, data = UVindex)
+summary(fit)
+```
+
+Mediation of experience
+```{r mediation_exp_lavaan}
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c1*RobotN
+  #mediator
+  Exp.cent ~ a1*RobotN
+  UVindex ~ b*Exp.cent
+
+  ## Condition effect of X on M at specified levels of W
+  ab := a1*b
+  total := ab + c1
+'
+
+fit <- sem(model, data = UVindex)
+summary(fit)
+```
+
+Replication of mediation of mind controlling for age
+```{r mediation_mind_age_lavaan}
+library(lavaan)
+
+UVindex$RobotN = factor(ifelse(UVindex$Robot=='Kaspar Back', 1, 2))
+
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c1*RobotN + c2*Age.cent
+  #mediator
+  Mind.cent ~ a1*RobotN + a2*Age.cent
+  UVindex ~ b*Mind.cent
+
+  ## Condition effect of X on M at specified levels of W
+  ab := a1*b
+  total := ab + c1
+'
+
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+ 
+```
+
+Mediation of agency controlling for age
+```{r mediation_agency_age_lavaan}
+library(lavaan)
+
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c1*RobotN + c2*Age.cent
+  #mediator
+  Agency.cent ~ a1*RobotN + a2*Age.cent
+  UVindex ~ b*Agency.cent
+
+  ## Condition effect of X on M at specified levels of W
+  ab := a1*b
+  total := ab + c1
+'
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+Mediation of experience controlling for age
+```{r mediation_exp_age_lavaan}
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c1*RobotN + c2*Age.cent
+  #mediator
+  Exp.cent ~ a1*RobotN + a2*Age.cent
+  UVindex ~ b*Exp.cent
+
+  ## Condition effect of X on M at specified levels of W
+  ab := a1*b
+  total := ab + c1
+'
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+Mediation of Mind on UV with Age moderating Robot on Mind
+```{r moderated_mediation_mind_model2}
+library(lavaan)
+
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+UVindex$WX = UVindex$RobotN*UVindex$Age.cent
+  
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c1*RobotN
+  UVindex ~ c2*Age.cent
+  UVindex ~ c3*WX
+  #mediator
+  Mind.cent ~ a1*RobotN
+  Mind.cent ~ a2*Age.cent
+  Mind.cent ~ a3*WX
+  UVindex ~ b*Mind.cent
+
+  ## Condition effect of X on M at specified levels of W
+  CEXM1 := a1 + a3*-.5
+  CEXM2 := a1 + a3*0.5
+  CEXM3 := a1 + a3*1.5
+  CEXM4 := a1 + a3*2.5
+
+  # Conditional Indirect Effect of X on Y at specified levels of W
+  CIEXY1 := (a1+a3*-.5)*b
+  CIEXY2 := (a1+a3*0.5)*b
+  CIEXY3 := (a1+a3*1.5)*b
+  CIEXY4 := (a1+a3*2.5)*b
+
+  # Conditional Direct Effect of X on Y at specified levels of W
+  CDEXY1 := c1 + c3*-.5
+  CDEXY2 := c1 + c3*0.5
+  CDEXY3 := c1 + c3*1.5
+  CDEXY4 := c1 + c3*2.5
+
+  # Highest Order Interaction
+  HOI := a3*b
+'
+
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+ 
+```
+
+Mediation of Agency on UV with Age moderating Robot on Mind
+```{r moderated_mediation_agency_model2}
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+UVindex$WX = UVindex$RobotN*UVindex$Age.cent
+
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c1*RobotN
+  UVindex ~ c2*Age.cent
+  UVindex ~ c3*WX
+  #mediator
+  Agency.cent ~ a1*RobotN
+  Agency.cent ~ a2*Age.cent
+  Agency.cent ~ a3*WX
+  UVindex ~ b*Agency.cent
+
+  ## Condition effect of X on M at specified levels of W
+  CEXM1 := a1 + a3*-1
+  CEXM3 := a1 + a3*0
+  CEXM4 := a1 + a3*1
+  CEXM5 := a1 + a3*2
+
+  # Conditional Indirect Effect of X on Y at specified levels of W
+  CIEXY1 := (a1+a3*-1)*b
+  CIEXY2 := (a1+a3*0)*b
+  CIEXY3 := (a1+a3*1)*b
+  CIEXY4 := (a1+a3*2)*b
+
+  # Conditional Direct Effect of X on Y at specified levels of W
+  CDEXY1 := c1 + c3*-1
+  CDEXY2 := c1 + c3*0
+  CDEXY3 := c1 + c3*1
+  CDEXY4 := c1 + c3*2
+'
+
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+Mediation of Experience on UV with Age moderating Robot on Mind
+```{r moderated_mediation_exp_model2}
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+UVindex$WX = UVindex$RobotN*UVindex$Age.cent
+
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c1*RobotN
+  UVindex ~ c2*Age.cent
+  UVindex ~ c3*WX
+  #mediator
+  Exp.cent ~ a1*RobotN
+  Exp.cent ~ a2*Age.cent
+  Exp.cent ~ a3*WX
+  UVindex ~ b*Exp.cent
+
+  ## Condition effect of X on M at specified levels of W
+  CEXM1 := a1 + a3*-1
+  CEXM2 := a1 + a3*0
+  CEXM3 := a1 + a3*1
+  CEXM4 := a1 + a3*2
+
+  # Conditional Indirect Effect of X on Y at specified levels of W
+  CIEXY1 := (a1+a3*-1)*b
+  CIEXY2 := (a1+a3*0)*b
+  CIEXY3 := (a1+a3*1)*b
+  CIEXY4 := (a1+a3*2)*b
+
+  # Conditional Direct Effect of X on Y at specified levels of W
+  CDEXY1 := c1 + c3*-1
+  CDEXY2 := c1 + c3*0
+  CDEXY3 := c1 + c3*1
+  CDEXY4 := c1 + c3*2'
+
+fit <- sem(model, data = UVindex, test = "bootstrap")
+summary(fit)
+ 
+```
+
+Mediation of Mind on UV with Age moderating Mind on UV
+```{r moderated_mediation_mind_model3}
+library(lavaan)
+
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+UVindex$WM = UVindex$Mind.cent*UVindex$Age.cent
+
+#b path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c*RobotN
+  #mediator
+  Mind.cent ~ a*RobotN
+  UVindex ~ b1*Mind.cent
+  UVindex ~ b2*Age.cent
+  UVindex ~ b3*WM
+
+  #Conditional indirect effect of X on Y
+  CIEXY1 := a*(b1+b3*-1)
+  CIEXY2 := a*(b1+b3*0)
+  CIEXY3 := a*(b1+b3*1)
+  CIEXY4 := a*(b1+b3*2)
+'
+
+fit <- sem(model, data = UVindex, test = "bootstrap")
+summary(fit)
+```
+
+Mediation of Agency on UV with Age moderating Mind on UV
+```{r moderated_mediation_agency_model3}
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+UVindex$WM = UVindex$Agency.cent*UVindex$Age.cent
+
+#b path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c*RobotN
+  #mediator
+  Agency.cent ~ a*RobotN
+  UVindex ~ b1*Agency.cent
+  UVindex ~ b2*Age.cent
+  UVindex ~ b3*WM
+
+  #Conditional indirect effect of X on Y
+  CIEXY1 := a*(b1+b3*-1)
+  CIEXY2 := a*(b1+b3*0)
+  CIEXY3 := a*(b1+b3*1)
+  CIEXY4 := a*(b1+b3*2)
+'
+
+fit <- sem(model, data = UVindex, test = "bootstrap")
+summary(fit)
+```
+
+Mediation of Experience on UV with Age moderating Mind on UV
+```{r moderated_mediation_exp_model3}
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+UVindex$WM = UVindex$Exp.cent*UVindex$Age.cent
+
+#b path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c*RobotN
+  #mediator
+  Exp.cent ~ a*RobotN
+  UVindex ~ b1*Exp.cent
+  UVindex ~ b2*Age.cent
+  UVindex ~ b3*WM
+
+  #Condition effect of M on Y
+  CEMY1 := b1 + b3*-1
+  CEMY2 := b1 + b3*0
+  CEMY3 := b1 + b3*1
+  CEMY4 := b1 + b3*2
+
+  #Conditional indirect effect of X on Y
+  CIEXY1 := a*(b1+b3*-1)
+  CIEXY2 := a*(b1+b3*0)
+  CIEXY3 := a*(b1+b3*1)
+  CIEXY4 := a*(b1+b3*2)
+'
+
+fit <- sem(model, data = UVindex, test = "bootstrap")
+summary(fit)
+```
+
+```{r moderation}
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+UVindex$X.Mod = UVindex$RobotN*UVindex$Age.cent
+
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ b1*RobotN
+  #moderator
+  UVindex ~ b2*Age.cent
+  UVindex ~ b3*X.Mod
+  Mind.cent ~ a*RobotN
+  UVindex ~ c*Mind.cent
+
+  ## Condition effect of X on Y at specified levels of M
+  mod1 := b1+b3*-1
+  mod2 := b1+b3*0
+  mod3 := b1+b3*1
+'
+
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r moderation}
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+UVindex$X.Mod = UVindex$Mind.cent*UVindex$Age.cent
+
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ b1*Mind.cent
+  #moderator
+  UVindex ~ b2*Age.cent
+  UVindex ~ b3*X.Mod
+  UVindex ~ c*RobotN
+
+  ## Condition effect of X on Y at specified levels of M
+  mod1 := b1+b3*-1
+  mod2 := b1+b3*0
+  mod3 := b1+b3*1
+'
+
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r moderation2}
+library(rockchalk)
+model = glm(UVindex~as.vector(Age.cent)*RobotN + Mind.cent,data=UVindex)
+summary(model)
+plotCurves(model, plotx="RobotN",modx="Age.cent", interval="confidence", modxVals="std.dev.")
+
+```
+
+Mediation of Mind on UV with Age moderating Robot on Mind
+```{r mediated_moderation}
+UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
+UVindex$X.Mod = UVindex$RobotN*UVindex$Age.cent
+  
+#a path is moderated by W
+model <- ' 
+  #direct effects
+  UVindex ~ c1*RobotN
+  UVindex ~ c2*Age.cent
+  UVindex ~ c3*X.Mod
+  #mediator
+  Mind.cent ~ a1*RobotN
+  Mind.cent ~ a2*Age.cent
+  Mind.cent ~ a3*X.Mod
+  UVindex ~ b*Mind.cent
+
+  ## Condition effect of X on M at specified levels of W
+  CEXM1 := a1 + a3*-1
+  CEXM2 := a1 + a3*0
+  CEXM3 := a1 + a3*1
+
+  # Conditional Indirect Effect of X on Y at specified levels of W
+  CIEXY1 := (a1+a3*-1)*b
+  CIEXY2 := (a1+a3*0)*b
+  CIEXY3 := (a1+a3*1)*b
+
+  # Conditional Direct Effect of X on Y at specified levels of W
+  CDEXY1 := c1 + c3*-1
+  CDEXY2 := c1 + c3*0
+  CDEXY3 := c1 + c3*1
+'
+
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+ 
+```

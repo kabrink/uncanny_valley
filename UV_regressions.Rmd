@@ -1,7 +1,7 @@
 ---
-title: "Uncanny Valley - Manuscript"
+title: "Uncanny Valley - Mediation Analyses"
 author: "Kimberly A. Brink"
-date: "June 30, 2016"
+date: "`r format(Sys.Date(),"%B %d, %Y")`"
 output: html_document
 ---
 ###Survey Questions
@@ -464,6 +464,7 @@ UVindex = data.frame(SubID=c(UV$SubID, UV$SubID),
 
 #remove participants with no creepiness factor
 UVindex=UVindex[which(!is.na(UVindex$UV)),]
+UVindex=UVindex[which(UVindex$AgeYears>=4),]
 
 #because agency and experience index are correlated, center them for regression analyses to decrease the problem of multicollinearity
 UVindex$UV.c = scale(UVindex$UV,center=T,scale=T)
@@ -478,6 +479,7 @@ UVindex$Age2 = UVindex$Age.c^2
 UVindex$AgeRoot = log(UVindex$Age.c)
 UVindex$RxA2= UVindex$Robot.n*UVindex$Age^2
 UVindex$Mind2 = UVindex$Mind.c^2
+UVindex$AgencyxAgeGroup = UVindex$Agency.c*UVindex$AgeGroup
 
 UVindex.young = UVindex[which(UVindex$Age < 108),]
 UVindex.old = UVindex[which(UVindex$Age >= 108),]
@@ -485,7 +487,7 @@ UVindex.old = UVindex[which(UVindex$Age >= 108),]
 
 ```{r regressions}
 
-lm.out = lm(UV~Robot*AgeRoot+Robot*Age.c,data=UVindex)
+lm.out = lm(UV~Agency.c+Exp.c+Age+Robot+Agency.c*Age+Exp.c*Age+Robot*Age,data=UVindex.old)
 lm.beta(lm.out)
 summary(lm.out)
 ```
@@ -499,12 +501,41 @@ summary(lm.out)
 
 model <- '
   ## Direct effects
-  UV ~ c1*Robot.n
-  UV ~ b1*Age.c
-  UV ~ b2*RxA
+  Exp.c ~ c1*Agency.c
+  Exp.c ~ c2*AgeGroup
+  Exp.c ~ c3*AgencyxAgeGroup
+  ## Conditional direct effect
+  mod1 := c1 + c3*1
+  mod2 := c1 + c3*2
+  mod3 := c1 + c3*3
+  mod4 := c1 + c3*4
   '
 
-fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+fit <- sem(model, data = UVindex)#, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+
+```{r moderation}
+#model 4
+#Y = UV
+#moderator = Age
+#X = Robot
+
+model <- '
+  ## Direct effects
+  Exp.c ~ c1*Agency.c
+  Exp.c ~ c2*AgeGroup
+  Exp.c ~ c3*AgencyxAgeGroup
+  ## Conditional direct effect
+  mod1 := c1 + c3*1
+  mod2 := c1 + c3*2
+  mod3 := c1 + c3*3
+  mod4 := c1 + c3*4
+  '
+
+fit <- sem(model, data = UVindex)#, se = "bootstrap", test = "bootstrap")
 summary(fit, standardized = TRUE, rsq = TRUE)
 parameterEstimates(fit)
 ```
@@ -519,19 +550,19 @@ model <- '
   ## Direct effects
   UV ~ c1*Robot.n
   ## Indirect effects
-  Exp.c ~ a1*Robot.n
-  UV ~ b1*Exp.c
+  Agency.c ~ a1*Robot.n
+  UV ~ b1*Agency.c
 
   ## Indirect effect of Robot on UV
   IEXY := a1*b1
   '
 
-fit <- sem(model, data = UVindex.old)
+fit <- sem(model, data = UVindex.young)
 summary(fit, standardized = TRUE, rsq = TRUE)
 parameterEstimates(fit)
 ```
 
-```{r basic_mediation_Robot}
+```{r basic_mediation_Robot2}
 #model 4
 #Y = UV
 #mediator = Mind.c

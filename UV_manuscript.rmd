@@ -46,6 +46,8 @@ library(car) #anova
 library(QuantPsyc)
 library(lsr)
 library(reshape2) #melt
+library(lavaan)
+
 #library(extrafont)
 #library(showtext)
 #font_import(pattern="[T/t]w Cen MT",prompt=FALSE)
@@ -408,8 +410,11 @@ UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interv
 UV$AgeYears = UV$Age/12
 
 #separate into four age groups
+UV$AgeGroup3 = factor(ifelse(UV$Age<96, "1", ifelse(UV$Age<144, "2", "3")))
 UV$AgeGroup = factor(ifelse(UV$Age<72, "1", ifelse(UV$Age<108, "2", ifelse(UV$Age<144, "3", "4"))))
-UV = UV[which(UV$AgeYears>1),]
+UV$AgeGroup5 = factor(ifelse(UV$Age<72, "1", ifelse(UV$Age<96, "2", ifelse(UV$Age<120, "3", ifelse(UV$Age<144, "4", "5")))))
+
+UV = UV[which(UV$AgeYears>=1),]
 
 pander(table(UV$AgeGroup))
 pander(table(UV$AgeGroup,UV$Sex))
@@ -635,11 +640,38 @@ barByAgeGG(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanniness")
 t.test(UV$UVindex.Back[which(UV$AgeGroup==1|UV$AgeGroup==2)],UV$UVindex.Front[which(UV$AgeGroup==1|UV$AgeGroup==2)])
 cohensD(UV$UVindex.Back[which(UV$AgeGroup==1|UV$AgeGroup==2)],UV$UVindex.Front[which(UV$AgeGroup==1|UV$AgeGroup==2)])
 
+t.test(UV$UVindex.Back[which(UV$AgeGroup3==1)],UV$UVindex.Front[which(UV$AgeGroup3==1)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup3==1)],UV$UVindex.Front[which(UV$AgeGroup3==1)])
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup3==2)],UV$UVindex.Front[which(UV$AgeGroup3==2)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup3==2)],UV$UVindex.Front[which(UV$AgeGroup3==2)])
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup3==3)],UV$UVindex.Front[which(UV$AgeGroup3==3)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup3==3)],UV$UVindex.Front[which(UV$AgeGroup3==3)])
+
+#################
 t.test(UV$UVindex.Back[which(UV$AgeGroup==3)],UV$UVindex.Front[which(UV$AgeGroup==3)])
 cohensD(UV$UVindex.Back[which(UV$AgeGroup==3)],UV$UVindex.Front[which(UV$AgeGroup==3)])
 
 t.test(UV$UVindex.Back[which(UV$AgeGroup==4)],UV$UVindex.Front[which(UV$AgeGroup==4)])
 cohensD(UV$UVindex.Back[which(UV$AgeGroup==4)],UV$UVindex.Front[which(UV$AgeGroup==4)])
+
+#################
+t.test(UV$UVindex.Back[which(UV$AgeGroup5==1)],UV$UVindex.Front[which(UV$AgeGroup5==1)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup5==1)],UV$UVindex.Front[which(UV$AgeGroup5==1)])
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup5==2)],UV$UVindex.Front[which(UV$AgeGroup5==2)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup5==2)],UV$UVindex.Front[which(UV$AgeGroup5==2)])
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup5==3)],UV$UVindex.Front[which(UV$AgeGroup5==3)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup5==3)],UV$UVindex.Front[which(UV$AgeGroup5==3)])
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup5==4)],UV$UVindex.Front[which(UV$AgeGroup5==4)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup5==4)],UV$UVindex.Front[which(UV$AgeGroup5==4)])
+
+t.test(UV$UVindex.Back[which(UV$AgeGroup5==5)],UV$UVindex.Front[which(UV$AgeGroup5==5)])
+cohensD(UV$UVindex.Back[which(UV$AgeGroup5==5)],UV$UVindex.Front[which(UV$AgeGroup5==5)])
+
 ```
 
 ```{r Agency_Index,fig.width=18,fig.height=8}
@@ -747,13 +779,14 @@ UVindex = data.frame(SubID=c(UV$SubID, UV$SubID),
 
 #remove participants with no creepiness factor
 UVindex=UVindex[which(!is.na(UVindex$UVindex)),]
+#UVindex=UVindex[which(UVindex$AgeYears>=5),]
 
 #because agency and experience index are correlated, center them for regression analyses to decrease the problem of multicollinearity
-UVindex$UVindex.cent = scale(UVindex$UVindex,center=T,scale=T)
-UVindex$Agency.cent = scale(UVindex$Agency,center=T,scale=T)
-UVindex$Exp.cent = scale(UVindex$Experience,center=T,scale=T)
-UVindex$Age.cent = scale(UVindex$Age,center=T,scale=T)
-UVindex$Mind.cent = scale(UVindex$Mind,center=T,scale=T)
+UVindex$UVindex.C = as.numeric(scale(UVindex$UVindex,center=T,scale=T))
+UVindex$Agency.C = as.numeric(scale(UVindex$Agency,center=T,scale=T))
+UVindex$Exp.C = as.numeric(scale(UVindex$Experience,center=T,scale=T))
+UVindex$Age.C = as.numeric(scale(UVindex$Age,center=T,scale=T))
+UVindex$Mind.C = as.numeric(scale(UVindex$Mind,center=T,scale=T))
 
 #pander(summary(lm(Agency~Age+Robot+Age*Robot,
 #                  data=UVindex)))
@@ -771,18 +804,21 @@ UVindex$AgeGroup2 = ifelse(UVindex$AgeGroup==1|UVindex$AgeGroup==2,1,2)
 #                    data=UVindex), type='II'))
 
 
-write.csv(UVindex, '~/Desktop/UVindex.csv')
+#write.csv(UVindex, '~/Desktop/UVindex.csv')
 
-pander(Anova(lm(UVindex~Robot+AgeGroup2+Robot*AgeGroup2,
+pander(Anova(lm(UVindex~Robot+AgeGroup+Robot*AgeGroup,
                    data=UVindex), type='III'))
 
-aov.out = aov(UVindex~Robot+AgeGroup2+Robot*AgeGroup2,
+aov.out = aov(UVindex~Robot+AgeGroup+Robot*AgeGroup,
               data=UVindex)
 
 etaSquared(aov.out, type=3, anova=T)
 
 pander(Anova(lm(UVindex~Robot+AgeGroup2+Robot*AgeGroup2,
                    data=UVindex), type='II'))
+
+aov.out = aov(UVindex~Robot+AgeGroup2+Robot*AgeGroup2,
+                   data=UVindex)
 
 etaSquared(aov.out, type=2, anova=T)
 
@@ -811,9 +847,8 @@ etaSquared(aov.out, type=2, anova=T)
 ##Regression
 ```{r regressions}
 #divide participants into groups based on when the Uncanny Valley effect appears (groups 3 & 4 show effect, groups 1 & 2 do not)
-UVindex.old = UVindex[which(UVindex$AgeGroup>2),]
-UVindex.young = UVindex[which(UVindex$AgeGroup<3),]
-
+UVindex.old = UVindex[which(UVindex$AgeYears>=9),]
+UVindex.young = UVindex[which(UVindex$AgeYears<9),]
 
 t.test(UVindex~Robot,data=UVindex.young)
 #sqrt((UVindex.young$UVindex[UVindex.young$Robot=='Kaspar Back'])^2 + ((UVindex.young$UVindex[UVindex.young$Robot=='Kaspar Front'])^2)/2)
@@ -825,31 +860,101 @@ t.test(UVindex~Robot,data=UVindex[which(UVindex$AgeGroup==4),])
 #sqrt((UVindex.young$UVindex[UVindex.young$Robot=='Kaspar Back'])^2 + ((UVindex.young$UVindex[UVindex.young$Robot=='Kaspar Front'])^2)/2)
 
 #regression analyses to predict creepiness factor
-lm.out = lm(UVindex~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,
+lm.out = lm(UVindex~Agency.C+Exp.C+Age+Robot+Agency.C*Age+Exp.C*Age+Robot*Age,
             data=UVindex)
 
 pander(summary(lm.out), caption = "full sample regression")
 
 pander(lm.beta(lm.out), caption = "beta estimates of full sample regression")
 
-pander(summary(lm(UVindex~Agency.cent,data=UVindex)), caption = "R2 for agency")
+#look at whether different predictors are significant for the younger children where the uncanny effect does not exist.
+lm.out = lm(UVindex~Agency.C+Exp.C+Age+Robot+Agency.C*Age+Exp.C*Age+Robot*Age,
+            data=UVindex.young)
 
-pander(summary(lm(UVindex~Mind.cent+Age+Robot+Mind.cent*Age,
-                  data=UVindex)))
+pander(summary(lm.out), caption="Younger sample regression")
+
+pander(lm.beta(lm.out), caption="Beta estimates of younger sample regression")
 
 #look at whether different predictors are significant for the older children where the uncanny effect exists.
-lm.out = lm(UVindex~Agency.cent+Exp.cent+Age+Robot+Agency.cent*Age+Exp.cent*Age+Robot*Age,
+lm.out = lm(UVindex~Agency.C+Exp.C+Age+Robot+Agency.C*Age+Exp.C*Age+Robot*Age,
             data=UVindex.old)
 
 pander(summary(lm.out), caption="Older sample regression")
 
 pander(lm.beta(lm.out), caption="Beta estimates of older sample regression")
 
-pander(summary(lm(UVindex~Exp.cent*Age,data=UVindex.old)), caption = "R2 for exp*age")
 
+cor.test(UVindex.young$Experience,UVindex.young$Agency)
+cor.test(UVindex.old$Experience,UVindex.old$Agency)
 
-pander(summary(lm(UVindex~Mind.cent+Age+Robot+Mind.cent*Age,
-                  data=UVindex.old)))
+pander(summary(lm(Experience~Agency.C*Age.C,data=UVindex)))
+
+UVindex.reg = data.frame(Experience=UVindex$Experience,Agency.C=as.numeric(UVindex$Agency.C),Age.C=as.numeric(UVindex$Age.C))
+res = lm(Experience~Agency.C*Age.C,data=UVindex.reg)
+pander(lm.beta(res), caption="Beta estimates for correlation and interaction")
+newdf <- expand.grid(Agency.C=seq(-1,1),Age.C=seq(-1.5,2.4,.65))
+
+yp=predict(res, newdf)
+
+p <- ggplot(data=transform(newdf, yp), 
+            aes(y=yp, x=Agency.C, color=factor(Age.C))) + stat_smooth(method=lm)
+p + scale_colour_discrete(name="Age", labels=as.character(seq(4,16,2))) + 
+  labs(x="Agency", y="Experience") + 
+  scale_x_continuous(breaks=seq(-1,1)) + theme_bw()
+```
+
+```{r moderation}
+#model 4
+#Y = UV
+#moderator = Age
+#X = Robot
+
+UVindex$AgencyXAge = UVindex$Agency.C*UVindex$Age.C
+UVindex$Exp = UVindex$Experience
+
+model <- '
+  ## Direct effects
+  Exp ~ c1*Agency.C
+  Exp ~ c2*Age.C
+  Exp ~ c3*AgencyXAge
+  ## Conditional direct effect
+  mod0 := c1 + c3*-1.5
+  mod1 := c1 + c3*-.85
+  mod2 := c1 + c3*-.2
+  mod3 := c1 + c3*.45
+  mod4 := c1 + c3*1.1
+  mod5 := c1 + c3*1.75
+  mod6 := c1 + c3*2.4
+  '
+         
+fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r}
+get_real <- function(coef, scaled_covariate){
+
+            # collect mean and standard deviation from scaled covariate
+            mean_sd <- unlist(attributes(scaled_covariate)[-1])
+
+            # reverse the z-transformation
+             answer <- (coef * mean_sd[2]) + mean_sd[1]
+
+            # this value will have a name, remove it
+             names(answer) <- NULL
+
+            # return unscaled coef
+              return(answer)
+}
+
+get_real(-1.5, scale(UVindex$Age,center = T, scale = T))/12
+get_real(-.85, scale(UVindex$Age,center = T, scale = T))/12
+get_real(-.2, scale(UVindex$Age,center = T, scale = T))/12
+get_real(.45, scale(UVindex$Age,center = T, scale = T))/12
+get_real(1.1, scale(UVindex$Age,center = T, scale = T))/12
+get_real(1.75, scale(UVindex$Age,center = T, scale = T))/12
+get_real(2.4, scale(UVindex$Age,center = T, scale = T))/12
 ```
 
 ```{r Uncanny_scatter}
@@ -926,13 +1031,13 @@ legend('topright',
 #dependent variable: dv = Uncanniness
 
 #test for replication of adult data with only older children
-pander(mediation.test(mv=UVindex.old$Exp.cent,
+pander(mediation.test(mv=UVindex.old$Exp.C,
                       iv=UVindex.old$Robot,
                       dv=UVindex.old$UVindex), 
        caption="Test of experience as a mediator with robot appearance as predictor for children older than 9")
 
 #test for replication of adult data with all children
-pander(mediation.test(mv=UVindex$Exp.cent,
+pander(mediation.test(mv=UVindex$Exp.C,
                       iv=UVindex$Robot,
                       dv=UVindex$UVindex), 
        caption="Test of experience as a mediator for all children with robot appearance as predictor for all children")
@@ -947,15 +1052,15 @@ pander(mediation.test(mv=UVindex$Exp.cent,
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Exp.cent+Robot,
+eq2 = lm(UVindex~Exp.C+Robot,
          data=UVindex.old)
 pander(summary(eq2), caption='Is the slope of Experience significantly different from zero?')
-b = eq2$coefficients[["Exp.cent"]]
-var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.cent']])^2
+b = eq2$coefficients[["Exp.C"]]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.C']])^2
 n.b = length(resid(eq2))
 
 #Equation 3
-eq3 = lm(Exp.cent~Robot,
+eq3 = lm(Exp.C~Robot,
          data=UVindex.old)
 pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
@@ -995,19 +1100,19 @@ Step 4: To establish that M completely mediates the X-Y relationship, the effect
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
 
-pander(summary(lm(UVindex~Robot+Age.cent,
+pander(summary(lm(UVindex~Robot+Age.C,
                   data=UVindex)), 
        caption="Step 1: Show that the causal variable is correlated with the outcome")
 
 #Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
 
-pander(summary(lm(Exp.cent~Robot+Age.cent,
+pander(summary(lm(Exp.C~Robot+Age.C,
                   data=UVindex)), 
        caption="Step 2: Show that the causal variable is correlated with the mediator")
 
 #Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
 
-pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,
+pander(summary(lm(UVindex~Exp.C+Robot+Age.C,
                   data=UVindex)), 
        caption="Step 3:  Show that the mediator affects the outcome variable")
 
@@ -1023,15 +1128,15 @@ pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,
+eq2 = lm(UVindex~Exp.C+Robot+Age.C,
          data=UVindex)
 pander(summary(eq2), caption='Is the slope of Experience significantly different from zero?')
-b = eq2$coefficients[["Exp.cent"]]
-var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.cent']])^2
+b = eq2$coefficients[["Exp.C"]]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.C']])^2
 n.b = length(resid(eq2))
 
 #Equation 3
-eq3 = lm(Exp.cent~Robot+Age.cent,
+eq3 = lm(Exp.C~Robot+Age.C,
          data=UVindex)
 pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
@@ -1126,19 +1231,19 @@ Step 4: To establish that M completely mediates the X-Y relationship, the effect
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
 
-pander(summary(lm(UVindex~Robot+Age.cent,
+pander(summary(lm(UVindex~Robot+Age.C,
                   data=UVindex.old)), 
        caption="Step 1: Show that the causal variable is correlated with the outcome")
 
 #Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
 
-pander(summary(lm(Exp.cent~Robot+Age.cent,
+pander(summary(lm(Exp.C~Robot+Age.C,
                   data=UVindex.old)), 
        caption="Step 2: Show that the causal variable is correlated with the mediator")
 
 #Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
 
-pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,
+pander(summary(lm(UVindex~Exp.C+Robot+Age.C,
                   data=UVindex.old)), 
        caption="Step 3:  Show that the mediator affects the outcome variable")
 
@@ -1156,15 +1261,15 @@ pander(summary(lm(UVindex~Exp.cent+Robot+Age.cent,
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Exp.cent+Robot+Age.cent,
+eq2 = lm(UVindex~Exp.C+Robot+Age.C,
          data=UVindex.old)
 pander(summary(eq2), caption='Is the slope of Experience significantly different from zero?')
-b = eq2$coefficients[["Exp.cent"]]
-var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.cent']])^2
+b = eq2$coefficients[["Exp.C"]]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Exp.C']])^2
 n.b = length(resid(eq2))
 
 #Equation 3
-eq3 = lm(Exp.cent~Robot+Age.cent,
+eq3 = lm(Exp.C~Robot+Age.C,
          data=UVindex.old)
 pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
@@ -1278,19 +1383,19 @@ Step 4: To establish that M completely mediates the X-Y relationship, the effect
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
 
-pander(summary(lm(UVindex~Robot+Age.cent,
+pander(summary(lm(UVindex~Robot+Age.C,
                   data=UVindex)), 
        caption="Step 1: Show that the causal variable is correlated with the outcome")
 
 #Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
 
-pander(summary(lm(Agency.cent~Robot+Age.cent,
+pander(summary(lm(Agency.C~Robot+Age.C,
                   data=UVindex)), 
        caption="Step 2: Show that the causal variable is correlated with the mediator")
 
 #Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
 
-pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,
+pander(summary(lm(UVindex~Agency.C+Robot+Age.C,
                   data=UVindex)), 
        caption="Step 3:  Show that the mediator affects the outcome variable")
 
@@ -1305,16 +1410,16 @@ pander(summary(lm(UVindex~Agency.cent+Robot+Age.cent,
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Robot+Agency.cent+Age.cent,
+eq2 = lm(UVindex~Robot+Agency.C+Age.C,
          data=UVindex)
 pander(summary(eq2))
 pander(summary(eq2), caption='Is the slope of Agency significantly different from zero?')
-b = eq2$coefficients[["Agency.cent"]]
-var.b = (summary(eq2)$coef[,'Std. Error'][['Agency.cent']])^2
+b = eq2$coefficients[["Agency.C"]]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Agency.C']])^2
 n.b = length(resid(eq2))
 
 #Equation 3
-eq3 = lm(Agency.cent~Robot+Age.cent,
+eq3 = lm(Agency.C~Robot+Age.C,
          data=UVindex)
 pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
@@ -1397,13 +1502,13 @@ legend('topright',
 #dependent variable: dv = Uncanniness
 
 #test for replication of adult data with only older children
-pander(mediation.test(mv=UVindex.old$Mind.cent,
+pander(mediation.test(mv=UVindex.old$Mind.C,
                       iv=UVindex.old$Robot,
                       dv=UVindex.old$UVindex), 
        caption="Test of Mind as a mediator with robot appearance as predictor for children older than 9")
 
 #test for replication of adult data with all children
-#pander(mediation.test(mv=UVindex$Mind.cent,
+#pander(mediation.test(mv=UVindex$Mind.C,
 #                      iv=UVindex$Robot,
 #                      dv=UVindex$UVindex), 
 #       caption="Test of Mind as a mediator for all children with robot appearance as predictor for all children")
@@ -1428,15 +1533,15 @@ cor.test(UV$Mind.Front,UV$Age)
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Mind.cent+Robot,
+eq2 = lm(UVindex~Mind.C+Robot,
          data=UVindex.old)
 pander(summary(eq2), caption='Is the slope of Mind significantly different from zero?')
-b = eq2$coefficients[["Mind.cent"]]
-var.b = (summary(eq2)$coef[,'Std. Error'][['Mind.cent']])^2
+b = eq2$coefficients[["Mind.C"]]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Mind.C']])^2
 n.b = length(resid(eq2))
 
 #Equation 3
-eq3 = lm(Mind.cent~Robot,
+eq3 = lm(Mind.C~Robot,
          data=UVindex.old)
 pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
@@ -1476,19 +1581,19 @@ Step 4: To establish that M completely mediates the X-Y relationship, the effect
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
 
-pander(summary(lm(UVindex~Robot+Age.cent,
+pander(summary(lm(UVindex~Robot+Age.C,
                   data=UVindex)), 
        caption="Step 1: Show that the causal variable is correlated with the outcome")
 
 #Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
 
-pander(summary(lm(Mind.cent~Robot+Age.cent,
+pander(summary(lm(Mind.C~Robot+Age.C,
                   data=UVindex)), 
        caption="Step 2: Show that the causal variable is correlated with the mediator")
 
 #Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
 
-pander(summary(lm(UVindex~Mind.cent+Robot+Age.cent,
+pander(summary(lm(UVindex~Mind.C+Robot+Age.C,
                   data=UVindex)), 
        caption="Step 3:  Show that the mediator affects the outcome variable")
 
@@ -1504,25 +1609,25 @@ pander(summary(lm(UVindex~Mind.cent+Robot+Age.cent,
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Mind.cent+Robot+Age.cent,
+eq2 = lm(UVindex~Mind.C+Robot+Age.C,
          data=UVindex)
 pander(summary(eq2), caption='Is the slope of Mind significantly different from zero?')
-b = eq2$coefficients[["Mind.cent"]]
-var.b = (summary(eq2)$coef[,'Std. Error'][['Mind.cent']])^2
+b = eq2$coefficients[["Mind.C"]]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Mind.C']])^2
 n.b = length(resid(eq2))
 
-lm.beta(lm(UVindex~Mind.cent+Robot+Age.cent,
+lm.beta(lm(UVindex~Mind.C+Robot+Age.C,
          data=UVindex))
 
 #Equation 3
-eq3 = lm(Mind.cent~Robot+Age.cent,
+eq3 = lm(Mind.C~Robot+Age.C,
          data=UVindex)
 pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
 var.a = (summary(eq3)$coef[,'Std. Error'][['RobotKaspar Front']])^2
 n.a = length(resid(eq3))
 
-lm.beta(lm(Mind.cent~Robot+Age.cent,
+lm.beta(lm(Mind.C~Robot+Age.C,
          data=UVindex))
 #To test for significance, the product is then divided by the standard error of the product and the ratio is compared to a standard normal distribution.
 
@@ -1612,19 +1717,19 @@ Step 4: To establish that M completely mediates the X-Y relationship, the effect
 #http://davidakenny.net/cm/mediate.htm
 #Step 1:  Show that the causal variable is correlated with the outcome.  Use Y as the criterion variable in a regression equation and X as a predictor (estimate and test path c in the above figure). This step establishes that there is an effect that may be mediated.
 
-pander(summary(lm(UVindex~Robot+Age.cent,
+pander(summary(lm(UVindex~Robot+Age.C,
                   data=UVindex.old)), 
        caption="Step 1: Show that the causal variable is correlated with the outcome")
 
 #Step 2: Show that the causal variable is correlated with the mediator.  Use M as the criterion variable in the regression equation and X as a predictor (estimate and test path a).  This step essentially involves treating the mediator as if it were an outcome variable.
 
-pander(summary(lm(Mind.cent~Robot+Age.cent,
+pander(summary(lm(Mind.C~Robot+Age.C,
                   data=UVindex.old)), 
        caption="Step 2: Show that the causal variable is correlated with the mediator")
 
 #Step 3:  Show that the mediator affects the outcome variable.  Use Y as the criterion variable in a regression equation and X and M as predictors (estimate and test path b).  It is not sufficient just to correlate the mediator with the outcome because the mediator and the outcome may be correlated because they are both caused by the causal variable X.  Thus, the causal variable must be controlled in establishing the effect of the mediator on the outcome.
 
-pander(summary(lm(UVindex~Mind.cent+Robot+Age.cent,
+pander(summary(lm(UVindex~Mind.C+Robot+Age.C,
                   data=UVindex.old)), 
        caption="Step 3:  Show that the mediator affects the outcome variable")
 
@@ -1642,15 +1747,15 @@ pander(summary(lm(UVindex~Mind.cent+Robot+Age.cent,
 #Estimate Equations 2 (Y = i + c'X + bM + e) and 3 (M = i + aX + e), i = intercept, e = error, M = mediator, X = predictor, y = criterion. Compute product of a & b.
 
 #Equation 2
-eq2 = lm(UVindex~Mind.cent+Robot+Age.cent,
+eq2 = lm(UVindex~Mind.C+Robot+Age.C,
          data=UVindex.old)
 pander(summary(eq2), caption='Is the slope of Mind significantly different from zero?')
-b = eq2$coefficients[["Mind.cent"]]
-var.b = (summary(eq2)$coef[,'Std. Error'][['Mind.cent']])^2
+b = eq2$coefficients[["Mind.C"]]
+var.b = (summary(eq2)$coef[,'Std. Error'][['Mind.C']])^2
 n.b = length(resid(eq2))
 
 #Equation 3
-eq3 = lm(Mind.cent~Robot+Age.cent,
+eq3 = lm(Mind.C~Robot+Age.C,
          data=UVindex.old)
 pander(summary(eq3), caption='Is the slope of Robot significantly different from zero?')
 a = eq3$coefficients[["RobotKaspar Front"]]
@@ -1765,452 +1870,4 @@ cohensD(UV.9to11$UVindex.Back,UV.9to11$UVindex.Nao, method='paired')
 t.test(UV.old$UVindex.Back,UV.old$UVindex.Nao, paired = T)
 cohensD(UV.old$UVindex.Back,UV.old$UVindex.Nao, method='paired')
 
-```
-
-###Mediation - Lavaan Package
-Mediation of mind
-```{r mediation_mind_lavaan}
-library(lavaan)
-
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c1*RobotN
-  #mediator
-  Mind.cent ~ a1*RobotN
-  UVindex ~ b*Mind.cent
-
-  ## Condition effect of X on M at specified levels of W
-  ab := a1*b
-  total := ab + c1
-'
-
-fit <- sem(model, data = UVindex)
-summary(fit)
- 
-```
-
-Mediation of agency
-```{r mediation_agency_lavaan}
-library(lavaan)
-
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c1*RobotN
-  #mediator
-  Agency.cent ~ a1*RobotN
-  UVindex ~ b*Agency.cent
-
-  ## Condition effect of X on M at specified levels of W
-  ab := a1*b
-  total := ab + c1
-'
-
-fit <- sem(model, data = UVindex)
-summary(fit)
-```
-
-Mediation of experience
-```{r mediation_exp_lavaan}
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c1*RobotN
-  #mediator
-  Exp.cent ~ a1*RobotN
-  UVindex ~ b*Exp.cent
-
-  ## Condition effect of X on M at specified levels of W
-  ab := a1*b
-  total := ab + c1
-'
-
-fit <- sem(model, data = UVindex)
-summary(fit)
-```
-
-Replication of mediation of mind controlling for age
-```{r mediation_mind_age_lavaan}
-library(lavaan)
-
-UVindex$RobotN = factor(ifelse(UVindex$Robot=='Kaspar Back', 1, 2))
-
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c1*RobotN + c2*Age.cent
-  #mediator
-  Mind.cent ~ a1*RobotN + a2*Age.cent
-  UVindex ~ b*Mind.cent
-
-  ## Condition effect of X on M at specified levels of W
-  ab := a1*b
-  total := ab + c1
-'
-
-fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
-summary(fit, standardized = TRUE, rsq = TRUE)
-parameterEstimates(fit)
- 
-```
-
-Mediation of agency controlling for age
-```{r mediation_agency_age_lavaan}
-library(lavaan)
-
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c1*RobotN + c2*Age.cent
-  #mediator
-  Agency.cent ~ a1*RobotN + a2*Age.cent
-  UVindex ~ b*Agency.cent
-
-  ## Condition effect of X on M at specified levels of W
-  ab := a1*b
-  total := ab + c1
-'
-fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
-summary(fit, standardized = TRUE, rsq = TRUE)
-parameterEstimates(fit)
-```
-
-Mediation of experience controlling for age
-```{r mediation_exp_age_lavaan}
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c1*RobotN + c2*Age.cent
-  #mediator
-  Exp.cent ~ a1*RobotN + a2*Age.cent
-  UVindex ~ b*Exp.cent
-
-  ## Condition effect of X on M at specified levels of W
-  ab := a1*b
-  total := ab + c1
-'
-fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
-summary(fit, standardized = TRUE, rsq = TRUE)
-parameterEstimates(fit)
-```
-
-Mediation of Mind on UV with Age moderating Robot on Mind
-```{r moderated_mediation_mind_model2}
-library(lavaan)
-
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-UVindex$WX = UVindex$RobotN*UVindex$Age.cent
-  
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c1*RobotN
-  UVindex ~ c2*Age.cent
-  UVindex ~ c3*WX
-  #mediator
-  Mind.cent ~ a1*RobotN
-  Mind.cent ~ a2*Age.cent
-  Mind.cent ~ a3*WX
-  UVindex ~ b*Mind.cent
-
-  ## Condition effect of X on M at specified levels of W
-  CEXM1 := a1 + a3*-.5
-  CEXM2 := a1 + a3*0.5
-  CEXM3 := a1 + a3*1.5
-  CEXM4 := a1 + a3*2.5
-
-  # Conditional Indirect Effect of X on Y at specified levels of W
-  CIEXY1 := (a1+a3*-.5)*b
-  CIEXY2 := (a1+a3*0.5)*b
-  CIEXY3 := (a1+a3*1.5)*b
-  CIEXY4 := (a1+a3*2.5)*b
-
-  # Conditional Direct Effect of X on Y at specified levels of W
-  CDEXY1 := c1 + c3*-.5
-  CDEXY2 := c1 + c3*0.5
-  CDEXY3 := c1 + c3*1.5
-  CDEXY4 := c1 + c3*2.5
-
-  # Highest Order Interaction
-  HOI := a3*b
-'
-
-fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
-summary(fit, standardized = TRUE, rsq = TRUE)
-parameterEstimates(fit)
- 
-```
-
-Mediation of Agency on UV with Age moderating Robot on Mind
-```{r moderated_mediation_agency_model2}
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-UVindex$WX = UVindex$RobotN*UVindex$Age.cent
-
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c1*RobotN
-  UVindex ~ c2*Age.cent
-  UVindex ~ c3*WX
-  #mediator
-  Agency.cent ~ a1*RobotN
-  Agency.cent ~ a2*Age.cent
-  Agency.cent ~ a3*WX
-  UVindex ~ b*Agency.cent
-
-  ## Condition effect of X on M at specified levels of W
-  CEXM1 := a1 + a3*-1
-  CEXM3 := a1 + a3*0
-  CEXM4 := a1 + a3*1
-  CEXM5 := a1 + a3*2
-
-  # Conditional Indirect Effect of X on Y at specified levels of W
-  CIEXY1 := (a1+a3*-1)*b
-  CIEXY2 := (a1+a3*0)*b
-  CIEXY3 := (a1+a3*1)*b
-  CIEXY4 := (a1+a3*2)*b
-
-  # Conditional Direct Effect of X on Y at specified levels of W
-  CDEXY1 := c1 + c3*-1
-  CDEXY2 := c1 + c3*0
-  CDEXY3 := c1 + c3*1
-  CDEXY4 := c1 + c3*2
-'
-
-fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
-summary(fit, standardized = TRUE, rsq = TRUE)
-parameterEstimates(fit)
-```
-
-Mediation of Experience on UV with Age moderating Robot on Mind
-```{r moderated_mediation_exp_model2}
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-UVindex$WX = UVindex$RobotN*UVindex$Age.cent
-
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c1*RobotN
-  UVindex ~ c2*Age.cent
-  UVindex ~ c3*WX
-  #mediator
-  Exp.cent ~ a1*RobotN
-  Exp.cent ~ a2*Age.cent
-  Exp.cent ~ a3*WX
-  UVindex ~ b*Exp.cent
-
-  ## Condition effect of X on M at specified levels of W
-  CEXM1 := a1 + a3*-1
-  CEXM2 := a1 + a3*0
-  CEXM3 := a1 + a3*1
-  CEXM4 := a1 + a3*2
-
-  # Conditional Indirect Effect of X on Y at specified levels of W
-  CIEXY1 := (a1+a3*-1)*b
-  CIEXY2 := (a1+a3*0)*b
-  CIEXY3 := (a1+a3*1)*b
-  CIEXY4 := (a1+a3*2)*b
-
-  # Conditional Direct Effect of X on Y at specified levels of W
-  CDEXY1 := c1 + c3*-1
-  CDEXY2 := c1 + c3*0
-  CDEXY3 := c1 + c3*1
-  CDEXY4 := c1 + c3*2'
-
-fit <- sem(model, data = UVindex, test = "bootstrap")
-summary(fit)
- 
-```
-
-Mediation of Mind on UV with Age moderating Mind on UV
-```{r moderated_mediation_mind_model3}
-library(lavaan)
-
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-UVindex$WM = UVindex$Mind.cent*UVindex$Age.cent
-
-#b path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c*RobotN
-  #mediator
-  Mind.cent ~ a*RobotN
-  UVindex ~ b1*Mind.cent
-  UVindex ~ b2*Age.cent
-  UVindex ~ b3*WM
-
-  #Conditional indirect effect of X on Y
-  CIEXY1 := a*(b1+b3*-1)
-  CIEXY2 := a*(b1+b3*0)
-  CIEXY3 := a*(b1+b3*1)
-  CIEXY4 := a*(b1+b3*2)
-'
-
-fit <- sem(model, data = UVindex, test = "bootstrap")
-summary(fit)
-```
-
-Mediation of Agency on UV with Age moderating Mind on UV
-```{r moderated_mediation_agency_model3}
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-UVindex$WM = UVindex$Agency.cent*UVindex$Age.cent
-
-#b path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c*RobotN
-  #mediator
-  Agency.cent ~ a*RobotN
-  UVindex ~ b1*Agency.cent
-  UVindex ~ b2*Age.cent
-  UVindex ~ b3*WM
-
-  #Conditional indirect effect of X on Y
-  CIEXY1 := a*(b1+b3*-1)
-  CIEXY2 := a*(b1+b3*0)
-  CIEXY3 := a*(b1+b3*1)
-  CIEXY4 := a*(b1+b3*2)
-'
-
-fit <- sem(model, data = UVindex, test = "bootstrap")
-summary(fit)
-```
-
-Mediation of Experience on UV with Age moderating Mind on UV
-```{r moderated_mediation_exp_model3}
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-UVindex$WM = UVindex$Exp.cent*UVindex$Age.cent
-
-#b path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c*RobotN
-  #mediator
-  Exp.cent ~ a*RobotN
-  UVindex ~ b1*Exp.cent
-  UVindex ~ b2*Age.cent
-  UVindex ~ b3*WM
-
-  #Condition effect of M on Y
-  CEMY1 := b1 + b3*-1
-  CEMY2 := b1 + b3*0
-  CEMY3 := b1 + b3*1
-  CEMY4 := b1 + b3*2
-
-  #Conditional indirect effect of X on Y
-  CIEXY1 := a*(b1+b3*-1)
-  CIEXY2 := a*(b1+b3*0)
-  CIEXY3 := a*(b1+b3*1)
-  CIEXY4 := a*(b1+b3*2)
-'
-
-fit <- sem(model, data = UVindex, test = "bootstrap")
-summary(fit)
-```
-
-```{r moderation}
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-UVindex$X.Mod = UVindex$RobotN*UVindex$Age.cent
-
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ b1*RobotN
-  #moderator
-  UVindex ~ b2*Age.cent
-  UVindex ~ b3*X.Mod
-  Mind.cent ~ a*RobotN
-  UVindex ~ c*Mind.cent
-
-  ## Condition effect of X on Y at specified levels of M
-  mod1 := b1+b3*-1
-  mod2 := b1+b3*0
-  mod3 := b1+b3*1
-'
-
-fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
-summary(fit, standardized = TRUE, rsq = TRUE)
-parameterEstimates(fit)
-```
-
-```{r moderation}
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-UVindex$X.Mod = UVindex$Mind.cent*UVindex$Age.cent
-
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ b1*Mind.cent
-  #moderator
-  UVindex ~ b2*Age.cent
-  UVindex ~ b3*X.Mod
-  UVindex ~ c*RobotN
-
-  ## Condition effect of X on Y at specified levels of M
-  mod1 := b1+b3*-1
-  mod2 := b1+b3*0
-  mod3 := b1+b3*1
-'
-
-fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
-summary(fit, standardized = TRUE, rsq = TRUE)
-parameterEstimates(fit)
-```
-
-```{r moderation2}
-library(rockchalk)
-model = glm(UVindex~as.vector(Age.cent)*RobotN + Mind.cent,data=UVindex)
-summary(model)
-plotCurves(model, plotx="RobotN",modx="Age.cent", interval="confidence", modxVals="std.dev.")
-
-```
-
-Mediation of Mind on UV with Age moderating Robot on Mind
-```{r mediated_moderation}
-UVindex$RobotN = ifelse(UVindex$Robot=='Kaspar Back', 1, 2)
-UVindex$X.Mod = UVindex$RobotN*UVindex$Age.cent
-  
-#a path is moderated by W
-model <- ' 
-  #direct effects
-  UVindex ~ c1*RobotN
-  UVindex ~ c2*Age.cent
-  UVindex ~ c3*X.Mod
-  #mediator
-  Mind.cent ~ a1*RobotN
-  Mind.cent ~ a2*Age.cent
-  Mind.cent ~ a3*X.Mod
-  UVindex ~ b*Mind.cent
-
-  ## Condition effect of X on M at specified levels of W
-  CEXM1 := a1 + a3*-1
-  CEXM2 := a1 + a3*0
-  CEXM3 := a1 + a3*1
-
-  # Conditional Indirect Effect of X on Y at specified levels of W
-  CIEXY1 := (a1+a3*-1)*b
-  CIEXY2 := (a1+a3*0)*b
-  CIEXY3 := (a1+a3*1)*b
-
-  # Conditional Direct Effect of X on Y at specified levels of W
-  CDEXY1 := c1 + c3*-1
-  CDEXY2 := c1 + c3*0
-  CDEXY3 := c1 + c3*1
-'
-
-fit <- sem(model, data = UVindex, se = "bootstrap", test = "bootstrap")
-summary(fit, standardized = TRUE, rsq = TRUE)
-parameterEstimates(fit)
- 
 ```

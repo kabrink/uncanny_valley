@@ -1,0 +1,1345 @@
+---
+title: "Uncanny Valley - Child Development"
+author: "Kimberly A. Brink"
+date: "4/5/2017"
+output: html_document
+---
+
+##Survey Questions
+
+Uncanny Valley 1: Do you feel the robot is creepy?
+
+Uncanny Valley 2: Does the robot make you feel weird?
+
+Uncanny Valley 3: Would you want to play with the robot?
+
+Agency 1: Can the robot do things on purpose?
+
+Agency 2: When the robot moves does it choose to move?
+
+Internal State 1: Does the robot think for itself?
+
+Internal State 2: Does the robot know the difference between good and bad?
+
+Internal State 3: Would the robot feel pain?
+
+Internal State 4: Does the robot have feelings?
+
+Internal State 5: Would the robot feel scared?
+
+Internal State 6: Would the robot feel hungry?
+
+Human-likeness 1: Is this robot like a human?
+
+Exploratory 1: Does the robot know it's a robot?
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.path='Manuscript Figures/', dev=c('png','postscript'), fig.width = 8, fig.height = 8, fig.keep='last', echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r libraries}
+library(lubridate) #for calculating ages
+library(Hmisc) #for importing SPSS
+library(plyr) #for joining data frames
+library(pander) #for displaying tables
+library(psych)
+library(QuantPsyc)
+library(lsr)
+library(reshape2) #melt
+library(lavaan)
+library(car) #reverse coding
+```
+
+```{r standard_error}
+#calculates standard error (automatically removes missing values)
+std.error <- function(x) sd(x,na.rm=TRUE)/sqrt(length(x))
+```
+
+```{r safe_ifelse}
+#when using the original ifelse statement, the class of the variable contained in the yes/no statements is not protected. if a variable is contained in the yes/no statement, it may be converted to an illegible numerical class. "ifelse makes factors lose their levels and Dates lose their class and only their mode (numeric) is restored"
+
+#this safe.ifelse function came from: http://stackoverflow.com/questions/6668963/how-to-prevent-ifelse-from-turning-date-objects-into-numeric-objects
+
+#it protects both date columns and factor columns
+
+safe.ifelse <- function(cond, yes, no) {
+      class.y <- class(yes)
+      if ("factor" %in% class.y) {  
+        levels.y = levels(yes)
+      }
+      X <- ifelse(cond,yes,no)
+      if ("factor" %in% class.y) {  
+        X = as.factor(X)
+        levels(X) = levels.y
+      } else {
+        class(X) <- class.y
+      }
+      return(X)
+}
+```
+
+```{r screeplot_factanal}
+#http://www.stat.cmu.edu/~cshalizi/350/2008/lectures/14/lecture-14.pdf
+screeplot.factanal <- function(fa.fit,xlab="factor",ylab="eigenvalue",...) {
+	# sum-of-squares function for repeated application
+	sosq <- function(v) {sum(v^2)}
+	# Get the matrix of loadings
+	my.loadings <- as.matrix(fa.fit$loadings)
+	# Eigenvalues can be recovered as sum of
+	# squares of each column
+	evalues <- apply(my.loadings,2,sosq)
+	plot(evalues,xlab=xlab,ylab=ylab,...)
+}
+```
+
+```{r part_cor_function, echo = FALSE}
+#runs a partial correlation that can handle missing values
+#I think I made this. I'm sure pieces came from all over.
+part.cor <- function(x, y, z){
+  xres <- residuals(lm(x ~ z, na.action = na.exclude))
+  yres <- residuals(lm(y ~ z, na.action = na.exclude)) 
+  result <- cor.test(xres, yres) 
+  m = data.frame(1)
+  m$estimate = result$estimate 
+  m$tvalue = result$statistic 
+  m$df = result$parameter
+  m$p.value = result$p.value
+  return(m)
+}
+```
+
+```{r plot_settings}
+#change plot aesthetics here
+responseAxis <- 1.3 #
+responseAxis2 <- 1.9
+ageAxis <- 2 
+humanColor =  rgb(146/255, 87/255, 160/255)#'dimgray' #color of bars and points for human-like robot
+machineColor = rgb(140/255, 197/255, 69/255)#'lightgray' #color of bars and points for machine-like robot
+naoColor = rgb(248/255, 154/255, 52/255)#'white' #color of bars and points for Nao
+plotFill = 'white' #background of plot
+titleSize = 3 #size of main label
+titleSizeSmall = 2
+titleSizeExtraSmall = 1.5
+font = "Georgia"
+lineWidth = 5
+```
+
+```{r barByAge_function}
+barByAge <-function(v.back,v.front,v.nao,data,title){
+  #find means of var for each age group for the machine-like robot
+  means.back <- aggregate(v.back~AgeGroup4,data,mean)
+  #find means of variable for each age group for the human-like robot
+  means.front <- aggregate(v.front~AgeGroup4,data,mean) 
+  #find means of variable for each age group for the human-like robot
+  means.nao <- aggregate(v.nao~AgeGroup4,data,mean) 
+  
+  #find standard error of var for each age group for the machine-like robot
+  se.back <- aggregate(v.back~AgeGroup4,data,std.error) 
+  #find standard error of var for each age group for the human-like robot
+  se.front <- aggregate(v.front~AgeGroup4,data,std.error) 
+  #find standard error of var for each age group for the human-like robot
+  se.nao <- aggregate(v.nao~AgeGroup4,data,std.error) 
+  
+  means.mat<-matrix(c(means.back$v.back,means.front$v.front,means.nao$v.nao),
+                    ncol=4,
+                    byrow=T)-1 #combine means into one matrix
+  se.mat<-matrix(c(se.back$v.back,se.front$v.front,se.nao$v.nao),
+                 ncol=4,
+                 byrow=FALSE) #combine se into one matrix
+  
+  #label the columns by age group
+  colnames(means.mat) <- c('3-5','6-8','9-11','12-18')
+  colnames(se.mat) <- c('3-5','6-8','9-11','12-18')
+
+  #label the rows by robot type
+  rownames(means.mat) <- c('Machine-like','Human-like','Nao')
+  rownames(se.mat) <- c('Machine-like','Human-like','Nao')
+
+  #produce rounded values of the matrix for displaying on the plot
+  means.matR <- round(means.mat,2) 
+
+  plotData = melt(means.matR)
+  seData = melt(se.mat)
+  
+  names(plotData) = c("Robot","Age Group",title)
+  names(seData) = c("Robot","Age Group","SE")
+  #title = plotData$
+
+  plotData = join(plotData,seData)
+  
+  ggplot(data = plotData, aes(x = `Age Group`, y = plotData[title], fill = Robot)) + 
+    geom_bar(width = .65, position=position_dodge(), stat="identity") + 
+    scale_fill_grey() + 
+    geom_errorbar(aes(ymin=plotData[title]-SE, ymax=plotData[title]+SE),
+                  width=.2, #Line weights
+                  size = 1, #Width of the error bars
+                  position=position_dodge(.65)) + 
+    labs(x="Age (years)",y=title) + 
+    theme(text = element_text(size=14,family="Helvetica"), #set font
+          axis.text.x = element_text(size=12), #set size of x-axis font
+          axis.title.x = element_text(margin=margin(10,0,0,0), size=16), #set position of x-axis title
+          axis.text.y=element_text(angle=90, hjust=.5, size=12), #set size of y-axis text
+          axis.title.y=element_text(margin=margin(0,20,0,0), size=16), #set position of y-axis title
+          legend.background = element_rect(), #empty box legend
+          legend.key.size = unit(1, "cm"), #set size of boxes for legend
+          #legend.position="bottom", #set position of legend at bottom
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(), 
+          axis.line = element_line(colour = "black")) + 
+  scale_y_continuous(limits = c(0,3.15), #set min and max of y-axis
+                     breaks=0:3, #set y continuous to 4 tick marks at 0,1,2,3
+                     labels=c('Not at all', 'A little bit', 'A medium amount', 'A lot'), #set labels
+                     expand = c(0,0))  #set y-axis at 0
+  #scale_x_discrete(expand = c(0,0)) #set x-axis
+  
+}
+```
+
+```{r load_file}
+#library Hmisc
+#load SPSS data file
+filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/1.0/UV - Data.sav"
+UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F) #label DOB and DOT as date variables and import numerical values not string values for variables
+```
+
+```{r formatting}
+#library plyr
+#exclude orders 3 and where both conditions were presented together (leaving only between subjects for analysis)
+UV.original <- UV.original[UV.original$Order==1|UV.original$Order==2|is.na(UV.original$Order),] 
+
+UV.original = UV.original[which(!is.na(UV.original$SubID)),] #remove empty observations
+
+UV.original$Age = NULL #remove experiementer entered age (will calculate later)
+UV.original$AgeGroup = NULL #remove experiementer entered age (will calculate later)
+UV.original$AgeYear = NULL #remove experiementer entered age (will calculate later)
+UV.original$COMME0 = NULL #remove empty variable
+names(UV.original)[names(UV.original) == 'VAR00001'] <- 'Comments' #name unnamed variable
+names(UV.original)[names(UV.original) == 'PA11'] <- 'PQ11' #correct name of variable
+
+#original data set was created in long format, the following code converts it to short format
+#each participant had an observation for either the machine-like robot or human-like robot, then they had a set of answers about Nao. This makes sure all answers about robots are included in one observation.
+
+#separate answers about each robot into separate data frames
+UV.Nao <- UV.original[UV.original$Condition==3,] 
+UV.Front <- UV.original[UV.original$Condition==2,] 
+UV.Back <- UV.original[UV.original$Condition==1,] 
+
+#remove empty observations (that would have somehow magically slipped by when I removed them before)
+UV.Nao = UV.Nao[which(!is.na(UV.Nao$SubID)),] 
+UV.Front = UV.Front[which(!is.na(UV.Front$SubID)),] 
+UV.Back = UV.Back[which(!is.na(UV.Back$SubID)),] 
+
+#rename variables for consistency and differentiation for when they are joined back together
+names(UV.Nao) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+#the variables below are typically empty for Nao and not robot specific (they are a parent survey about experience with robots and technology), they can be copied over from UV.Front and UV.Back where they are always filled in
+#if these variables are left in UV.Nao they cause problems with joins later
+#the same subid may have empty data for these variables for the Nao dataset but not the UV.Front or UV.Back datasets, which causes these variables to be incorrectly copied over during the join
+UV.Nao=UV.Nao[,!(names(UV.Nao) %in% c("Sex","DOB","DOT","Order","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments"))]
+
+#rename variables for consistency and differentiation for when they are joined back together
+names(UV.Front) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+#rename variables for consistency and differentiation for when they are joined back together
+names(UV.Back) <- c("SubID","Sex","DOB","DOT","Order","Condition","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")
+
+#condition is no longer needed (this information is kept in the variable names)
+UV.Nao$Condition = NULL
+UV.Back$Condition = NULL
+UV.Front$Condition = NULL
+
+UV.NB <- join( UV.Back,UV.Nao ) #combine observations about Nao and observations about the machine-like robot by subject ID
+UV.NF <- join( UV.Front,UV.Nao ) #combine observations about Nao and observations about the machine-like robot by subject ID
+UV.Total <- merge( UV.NB,UV.NF,by="SubID",all.x=T,all.y=T ) #put all the observations together into one data frame
+
+#copy over variables that do not have a ".x" or ".y" on their name
+UV = UV.Total[c("SubID","UV1.Front","UV2.Front","UV3.Front","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front","IS5.Front","IS6.Front","HL1.Front","E1.Front","UV1.Back","UV2.Back","UV3.Back","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back","IS5.Back","IS6.Back","HL1.Back","E1.Back")]
+
+#copy over variables with a ".x" or ".y" but remove that from the end of the variable name
+for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao","IS5.Nao","IS6.Nao","HL1.Nao","E1.Nao","PQ1","PQ2","PQ3","PQ4","PQ5","PQ6","PQ7","PQ8","PQ9","PQ10","PQ11","PQ12","PQ13","PQ14","PQ15a","PQ15b","PQ16","Comments")) {
+  
+  UV[[var]] = safe.ifelse(is.na(UV.Total[[paste(var,".x",sep="")]]),
+                          UV.Total[[paste(var,".y",sep="")]],
+                          UV.Total[[paste(var,".x",sep="")]])
+}
+
+```
+
+##Age Breakdown
+```{r calculate_variables}
+#library lubridate
+#calculate age of participant in months
+UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interval(UV$DOB, UV$DOT))) + (day(as.period(interval(UV$DOB, UV$DOT)))/30)
+UV$Age.C = as.numeric(scale(UV$Age,center=T,scale=T))
+
+#calculate age of participant in years
+UV$AgeYears = UV$Age/12
+
+#separate into age groups variables
+UV$AgeGroup2 = factor(ifelse(UV$Age<mean(UV$Age), "1", "2"))
+UV$AgeGroup3 = factor(ifelse(UV$Age<96, "1", ifelse(UV$Age<144, "2", "3")))
+UV$AgeGroup4 = factor(ifelse(UV$Age<72, "1", ifelse(UV$Age<108, "2", ifelse(UV$Age<144, "3", "4"))))
+UV$AgeGroup5 = factor(ifelse(UV$Age<72, "1", ifelse(UV$Age<96, "2", ifelse(UV$Age<120, "3", ifelse(UV$Age<144, "4", "5")))))
+
+
+UV = UV[which(UV$AgeYears>1),]
+
+#pander(table(UV$AgeGroup4))
+#pander(table(UV$AgeGroup4,UV$Sex))
+#pander(aggregate(UV$AgeYears,list(UV$AgeGroup4),mean))
+#pander(aggregate(UV$AgeYears,list(UV$AgeGroup4),min))
+#pander(aggregate(UV$AgeYears,list(UV$AgeGroup4),max))
+
+ggplot(UV, aes(x=AgeYears)) + geom_histogram()
+```
+
+
+##Exploratory factor analysis for Kaspar Back
+Factor analysis with nonorthogonal geominQ rotation
+```{r EFA_Back}
+#reverse code
+UV$UV3.Back.r = recode(UV$UV3.Back, '1=4; 2=3; 3=2; 4=1')
+
+#factor analysis with all variables for machine-like robot
+#Q.Back <- c("UV1.Back","UV2.Back","UV3.Back.r","A1.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back","IS4.Back", "IS5.Back","IS6.Back","E1.Back","HL1.Back")
+
+#create scree plot
+#efa.QB <- fa(na.omit(UV[Q.Back]), nfactors=4, rotate="oblimin",fm="pa")
+#screeplot.factanal(efa.QB)
+
+#efa.QB <- fa(na.omit(UV[Q.Back]), nfactors=3, rotate="oblimin",fm="pa")
+
+#display factor loadings
+#print(efa.QB, digits=2, sort=TRUE)
+
+#remove cross-loading or low-loading variables: IS4.back (cross), E1.back (cross), A1.back(cross), HL1.back(low) 
+Q.Back <- c("UV1.Back","UV2.Back","A2.Back","IS1.Back","IS2.Back","IS3.Back", "IS5.Back","IS6.Back")
+
+efa.QB <- fa(na.omit(UV[Q.Back]), nfactors=3, rotate = "geominQ", fm="minchi", max.iter=10000)
+#print(efa.QB, digits=2, sort=TRUE)
+
+back.RMSEA = round(efa.QB$RMSEA["RMSEA"],4)
+back.RMSEA.lower = round(efa.QB$RMSEA["lower"],4)
+back.RMSEA.upper = round(efa.QB$RMSEA["upper"],4)
+
+back.TLI = efa.QB$TLI
+
+back.chi = round(efa.QB$STATISTIC,4)
+back.chi.df = efa.QB$dof
+back.chi.p = round(efa.QB$PVAL,3)
+
+#create three factors
+back.factor1 <- c("IS1.Back","IS2.Back","A2.Back") #think, moral, choose
+back.factor2 <- c("IS3.Back","IS5.Back","IS6.Back") #pain,fear,hunger
+#back.factor3 <- c("UV1.Back","UV2.Back","UV3.Back.r")
+
+#calculate alpha for each factor
+a.back.factor1 = psych::alpha(UV[back.factor1]) #alpha = 0.72 (.66,.78), #agency
+a.back.factor2 = psych::alpha(UV[back.factor2]) #alpha = 0.73 (.67, .79), #experience
+#a.back.factor3 = psych::alpha(UV[back.factor3],check.keys=TRUE) #alpha = 0.7 (.64,.77), uv
+r = cor(UV$UV1.Back,UV$UV2.Back,use="complete.obs",method="spearman")
+a.back.factor3 = (2*r)/(1+r)
+
+round(as.table(efa.QB$loadings),2)
+```
+
+##Exploratory factor analysis for Kaspar Front
+Factor analysis with nonorthogonal geominQ rotation
+```{r EFA_Front}
+UV$UV3.Front.r = recode(UV$UV3.Front, '1=4; 2=3; 3=2; 4=1')
+
+#factor analysis with all variables for machine-like robot
+#Q.Front <- c("UV1.Front","UV2.Front","UV3.Front.r","A1.Front","A2.Front","IS1.Front","IS2.Front","IS3.Front","IS4.Front", "IS5.Front","IS6.Front","E1.Front","HL1.Front")
+
+#create scree plot
+#efa.QF <- fa(na.omit(UV[Q.Front]), nfactors=3, rotate="oblimin", fm="pa")
+#screeplot.factanal(efa.QF)
+
+#display factor loadings
+#print(efa.QF, digits=2, sort=TRUE)
+
+#remove cross-loading or low-loading variables: IS4.Front (cross), HL1.Front (low)
+Q.Front <- c("UV1.Front","UV2.Front","IS1.Front","A2.Front","IS2.Front","IS3.Front","IS5.Front","IS6.Front")
+
+efa.QF <- fa(na.omit(UV[Q.Front]), nfactors=3, rotate = "geominQ", fm="minchi", max.iter=10000)
+
+#screeplot.factanal(efa.QF)
+
+#print(efa.QF, digits=2, sort=TRUE)
+
+front.RMSEA = round(efa.QF$RMSEA["RMSEA"],4)
+front.RMSEA.lower = round(efa.QF$RMSEA["lower"],4)
+front.RMSEA.upper = round(efa.QF$RMSEA["upper"],4)
+
+front.TLI = efa.QF$TLI
+
+front.chi = round(efa.QF$STATISTIC,4)
+front.chi.df = efa.QF$dof
+front.chi.p = round(efa.QF$PVAL,3)
+
+#create recommended factors
+front.factor2 <- c("IS3.Front","IS5.Front","IS6.Front") #pain,fear,hunger 
+front.factor1 <- c("IS1.Front","A2.Front", "IS2.Front") #think, moral, choose
+#front.factor3 <- c("UV1.Front","UV2.Front","UV3.Front.r")
+
+#calculate alpha for each factor
+a.front.factor1 = psych::alpha(UV[front.factor1]) #alpha = .85 (.82,.88), experience
+a.front.factor2 = psych::alpha(UV[front.factor2]) #alpha = .64 (.57,.72), agency
+#a.front.factor3 = psych::alpha(UV[front.factor3]) #alpha = .65 (.57,.73) (if drop UV3 -> .74), uv
+r = cor(UV$UV1.Front,UV$UV2.Front,use="complete.obs",method="spearman")
+a.front.factor3 = (2*r)/(1+r)
+
+round(as.table(efa.QF$loadings),2)
+```
+
+##Exploratory factor analysis for Nao
+Factor analysis with nonorthogonal geominQ rotation
+```{r EFA_Nao}
+
+UV$UV3.Nao.r = recode(UV$UV3.Nao, '1=4; 2=3; 3=2; 4=1')
+
+#factor analysis with all variables for machine-like robot
+#Q.Nao <- c("UV1.Nao","UV2.Nao","A1.Nao","A2.Nao","IS1.Nao","IS2.Nao","IS3.Nao","IS4.Nao", "IS5.Nao","IS6.Nao","E1.Nao","HL1.Nao")
+
+#create scree plot
+#efa.QN <- fa(na.omit(UV[Q.Nao]), nfactors=2, rotate="promax", fm="pa")
+#screeplot.factanal(efa.QN)
+
+#display factor loadings
+#print(efa.QN, digits=2, sort=TRUE)
+
+#remove cross-loading or low-loading variables: IS4.Nao (cross), HL1.Nao (low)
+Q.Nao <- c("UV1.Nao","UV2.Nao","IS1.Nao","A2.Nao","IS2.Nao","IS3.Nao", "IS5.Nao","IS6.Nao")
+
+efa.QN <- fa(na.omit(UV[Q.Nao]), nfactors=3, rotate="geominQ", fm="minchi", max.iter=10000)
+#screeplot.factanal(efa.QN)
+
+#print(efa.QN, digits=2, sort=TRUE)
+
+Nao.RMSEA = round(efa.QN$RMSEA["RMSEA"],4)
+Nao.RMSEA.lower = round(efa.QN$RMSEA["lower"],4)
+Nao.RMSEA.upper = round(efa.QN$RMSEA["upper"],4)
+
+Nao.TLI = efa.QN$TLI
+
+Nao.chi = round(efa.QN$STATISTIC,4)
+Nao.chi.df = efa.QN$dof
+Nao.chi.p = round(efa.QN$PVAL,3)
+
+#create recommended factors
+Nao.factor2 <- c("IS3.Nao","IS5.Nao","IS6.Nao","IS1.Nao","A2.Nao", "IS2.Nao") #pain,fear,hunger 
+Nao.factor1 <- c("IS1.Nao","A2.Nao", "IS2.Nao") #think, moral, choose
+#Nao.factor3 <- c("UV1.Nao","UV2.Nao","UV3.Nao.r")
+
+#calculate alpha for each factor
+a.Nao.factor1 = psych::alpha(UV[Nao.factor1]) #alpha = .85 (.82,.88), experience
+a.Nao.factor2 = psych::alpha(UV[Nao.factor2]) #alpha = .64 (.57,.72), agency
+#a.Nao.factor3 = psych::alpha(UV[Nao.factor3]) #alpha = .65 (.57,.73) (if drop UV3 -> .74), uv
+
+r = cor(UV$UV1.Nao,UV$UV2.Nao,use="complete.obs",method="spearman")
+a.Nao.factor3 = (2*r)/(1+r)
+
+round(as.table(efa.QN$loadings),3)
+```
+##Model Fit Indices
+```{r model_fit_indices}
+pander(data.frame("Robot" = c("Machine","Human","Nao"), 
+           "RMSEA" = c(paste(back.RMSEA," (",back.RMSEA.lower,",",back.RMSEA.upper,")",sep=""),
+                       paste(front.RMSEA," (",front.RMSEA.lower,",",front.RMSEA.upper,")",sep=""),
+                       paste(Nao.RMSEA," (",Nao.RMSEA.lower,",",Nao.RMSEA.upper,")",sep="")),
+           "TLI" = c(back.TLI, front.TLI, Nao.TLI),
+           "Chi-squared" = c(paste(back.chi,"(", back.chi.df,")",sep=""),
+                             paste(front.chi,"(",front.chi.df,")",sep=""),
+                             paste(Nao.chi,"(", Nao.chi.df, ")",sep="")),
+           "Chi-square (>p)" = c(back.chi.p, front.chi.p, Nao.chi.p)))
+```
+
+##Cronbach's Alpha
+```{r alphas}
+pander(data.frame("Robot" = c("Machine", "Human", "Nao"), 
+                  "Agency" = c(a.back.factor1$total$raw_alpha, 
+                               a.front.factor1$total$raw_alpha, 
+                               a.Nao.factor1$total$raw_alpha),
+                  "Experience" = c(a.back.factor2$total$raw_alpha,
+                                   a.front.factor2$total$raw_alpha,
+                                   a.Nao.factor2$total$raw_alpha),
+                  "UV" = c(a.back.factor3,
+                           a.front.factor3,
+                           a.Nao.factor3)))
+                  #"UV" = c(a.back.factor3$total$raw_alpha,
+                  #         a.front.factor3$total$raw_alpha,
+                  #         a.Nao.factor3$total$raw_alpha)))
+```
+
+```{r aggregates}
+efa.QB.scores = as.data.frame(efa.QB$scores)
+efa.QF.scores = as.data.frame(efa.QF$scores)
+efa.QN.scores = as.data.frame(efa.QN$scores)
+
+names(efa.QB.scores) = c("Ag.score.back","Exp.score.back","UV.score.back")
+names(efa.QF.scores) = c("Exp.score.front","UV.score.front","Ag.score.Front")
+names(efa.QN.scores) = c("Exp.score.Nao","Ag.score.Nao","UV.score.Nao")
+
+#names(efa.QB.scores) = c("Mind.score.back","UV.score.back")
+#names(efa.QF.scores) = c("Mind.score.front","UV.score.front")
+#names(efa.QN.scores) = c("Mind.score.Nao","UV.score.Nao")
+
+UV = merge(UV, efa.QB.scores, by = 0, all.x=T)
+UV$Row.names = NULL
+UV = merge(UV, efa.QF.scores, by = 0, all.x=T)
+UV$Row.names = NULL
+UV = merge(UV, efa.QN.scores, by = 0, all.x=T)
+UV$Row.names = NULL
+
+UV$UVindex3.Back = (UV$UV1.Back+UV$UV2.Back+UV$UV3.Back.r)/3
+UV$UVindex2.Back = (UV$UV1.Back+UV$UV2.Back)/2
+UV$Agency.Back = (UV$A2.Back+UV$IS1.Back+UV$IS2.Back)/3
+UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back)/3
+UV$Mind.Back = (UV$A2.Back+UV$IS1.Back+UV$IS2.Back+UV$IS3.Back+UV$IS5.Back+UV$IS6.Back)/6
+
+UV$UVindex3.Front = (UV$UV1.Front+UV$UV2.Front+UV$UV3.Front.r)/3
+UV$UVindex2.Front = (UV$UV1.Front+UV$UV2.Front)/2
+UV$Agency.Front = (UV$A2.Front+UV$IS1.Front+UV$IS2.Front)/3
+UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front)/3
+UV$Mind.Front = (UV$A2.Front+UV$IS1.Front+UV$IS2.Front+UV$IS3.Front+UV$IS5.Front+UV$IS6.Front)/6
+
+UV$UVindex3.Nao = (UV$UV1.Nao+UV$UV2.Nao+UV$UV3.Nao.r)/3
+UV$UVindex2.Nao = (UV$UV1.Nao+UV$UV2.Nao)/2
+UV$Agency.Nao = (UV$A2.Nao+UV$IS1.Nao+UV$IS2.Nao)/3
+UV$Exp.Nao = (UV$IS3.Nao+UV$IS5.Nao+UV$IS6.Nao)/3
+UV$Mind.Nao = (UV$A2.Nao+UV$IS1.Nao+UV$IS2.Nao+UV$IS3.Nao+UV$IS5.Nao+UV$IS6.Nao)/6
+```
+
+```{r reformat_data}
+#Order==1 is Back
+#Order==2 is Front
+
+UV$UV3 = NA
+UV$UV2 = NA
+UV$Agency = NA
+UV$Exp = NA
+UV$Mind = NA
+UV$UVscore = NA
+UV$AGscore = NA
+UV$EXPscore = NA
+
+UV$UVscore[which(UV$Order==2)] = UV$UV.score.front[which(UV$Order==2)]
+UV$UVscore[which(UV$Order==1)] = UV$UV.score.back[which(UV$Order==1)]
+
+UV$AGscore[which(UV$Order==2)] = UV$Ag.score.Front[which(UV$Order==2)]
+UV$AGscore[which(UV$Order==1)] = UV$Ag.score.back[which(UV$Order==1)]
+
+UV$EXPscore[which(UV$Order==2)] = UV$Exp.score.front[which(UV$Order==2)]
+UV$EXPscore[which(UV$Order==1)] = UV$Exp.score.back[which(UV$Order==1)]
+
+#UV$MINDscore[which(UV$Order==2)] = UV$Mind.score.front[which(UV$Order==2)]
+#UV$MINDscore[which(UV$Order==1)] = UV$Mind.score.back[which(UV$Order==1)]
+
+UV$UV3[which(UV$Order==2)] = UV$UVindex3.Front[which(UV$Order==2)]
+UV$UV3[which(UV$Order==1)] = UV$UVindex3.Back[which(UV$Order==1)]
+
+UV$UV2[which(UV$Order==2)] = UV$UVindex2.Front[which(UV$Order==2)]
+UV$UV2[which(UV$Order==1)] = UV$UVindex2.Back[which(UV$Order==1)]
+
+UV$Agency[which(UV$Order==2)] = UV$Agency.Front[which(UV$Order==2)]
+UV$Agency[which(UV$Order==1)] = UV$Agency.Back[which(UV$Order==1)]
+
+UV$Exp[which(UV$Order==2)] = UV$Exp.Front[which(UV$Order==2)]
+UV$Exp[which(UV$Order==1)] = UV$Exp.Back[which(UV$Order==1)]
+
+UV$Mind[which(UV$Order==2)] = UV$Mind.Front[which(UV$Order==2)]
+UV$Mind[which(UV$Order==1)] = UV$Mind.Back[which(UV$Order==1)]
+
+```
+
+```{r age_filter}
+UV = UV[UV$AgeYears>=3,]
+#UV = UV[UV$AgeYears>=4,]
+```
+
+```{r uncanniness_bar_plot, fig.width=7,fig.height=5.5}
+barByAge(UV$UVindex2.Back,UV$UVindex2.Front,UV$UVindex2.Nao,UV,"Uncanniness")
+```
+
+```{r center_variables_full}
+UV$Agency.C = scale(UV$Agency,center = T, scale = T)
+UV$Exp.C = scale(UV$Exp,center = T, scale = T)
+UV$Mind.C = scale(UV$Mind, center = T, scale = T)
+UV$Age.C = scale(UV$Age, center = T, scale = T)
+
+UV$AGscore.C = scale(UV$AGscore, center = T, scale = T)
+UV$EXPscore.C = scale(UV$EXPscore, center = T, scale = T)
+UV$MINDscore.C = scale((UV$AGscore+UV$EXPscore)/2,center=T,scale=T)
+
+UV$Robot = ifelse(UV$Order==1," Machine-like"," Human-like")
+#UV$Robot = factor(UV$Robot,levels(factor(UV$Robot))[c(2,1)])
+
+UV$Robot.C = ifelse(UV$Order==1,-1,1)
+
+UV$UV3.diff = UV$UV3-UV$UVindex3.Nao
+UV$UV2.diff = UV$UV2-UV$UVindex2.Nao
+UV$UVscore.diff = UV$UVscore-UV$UV.score.Nao
+```
+
+##Original Regressions
+###Full Sample
+```{r original_regressions}
+lm.out = lm(UV2~Robot*Age+Agency.C*Age+Exp.C*Age,data=UV)
+summary(lm.out)
+
+sqrt(vif(lm.out)) > 2
+```
+
+```{r original_regressions_age_centered}
+lm.out = lm(UV2~Robot*Age.C+Agency.C*Age.C+Exp.C*Age.C,data=UV)
+summary(lm.out)
+
+sqrt(vif(lm.out)) > 2
+```
+```{r original_regressions_agency_centered}
+lm.out = lm(UV2~Robot*Age.C+Agency.C*Age.C,data=UV)
+summary(lm.out)
+
+sqrt(vif(lm.out)) > 2
+```
+
+```{r original_regressions_mind_centered}
+lm.out = lm(UV2~Robot*Age.C+Mind.C*Age.C,data=UV)
+summary(lm.out)
+
+sqrt(vif(lm.out)) > 2
+```
+
+```{r original moderation}
+#Y = UV2.diff
+#moderator = Age
+#X = Robot
+
+UV$RobotXAge = UV$Robot.C*UV$Age.C
+UV$AgencyXAge = UV$Agency.C*UV$Age.C
+UV$ExpXAge = UV$Exp.C*UV$Age.C
+
+lm.out = lm(UV2~Robot+Agency.C+Exp.C+Age.C+RobotXAge+AgencyXAge+ExpXAge,data=UV)
+summary(lm.out)
+
+model <- '
+  ## Direct effects
+  UV2 ~ c1*Robot.C
+  UV2 ~ c2*Agency.C
+  UV2 ~ c3*Exp.C
+  UV2 ~ c4*Age.C
+  UV2 ~ c5*RobotXAge
+  UV2 ~ c6*AgencyXAge
+  UV2 ~ c7*ExpXAge
+  ## Test of simple slopes
+  rob.4years := c1 + c5*-1.52 # 4 years
+  rob.6years := c1 + c5*-.86 # 6 years
+  rob.8years := c1 + c5*-.203051 # 8 years
+  rob.9years := c1 + c5*.125849 # 9 years exactly
+  rob.10years := c1 + c5*.4547489 # 10 years
+  rob.12years := c1 + c5*1.116 # 12 years
+  rob.14years := c1 + c5*1.75 # 14 years
+  rob.16years := c1 + c5*2.448 # 16 years
+  agency.4years := c2 + c6*-1.52 # 4 years
+  agency.6years := c2 + c6*-.85 # 6 years
+  agency.8years := c2 + c6*-.203051 # 8 years
+  agency.9years := c2 + c6*.125849 # 9 years exactly
+  agency.10years := c2 + c6*.4547489 # 10 years
+  agency.12years := c2 + c6*1.116 # 12 years
+  agency.14years := c2 + c6*1.75 # 14 years
+  agency.16years := c2 + c6*2.448 # 16 years
+  exp.4years := c3 + c7*-1.52 # 4 years
+  exp.6years := c3 + c7*-.94 # 6 years
+  exp.8years := c3 + c7*-.203051 # 8 years
+  exp.9years := c3 + c7*.125849 # 9 years exactly
+  exp.10years := c3 + c7*.4547489 # 10 years
+  exp.12years := c3 + c7*1.116 # 12 years
+  exp.14years := c3 + c7*1.75 # 14 years
+  exp.16years := c3 + c7*2.448 # 16 years
+  '
+         
+fit <- sem(model, data = UV, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r original split_regressions}
+lm.out = lm(UV2~Robot*Age+Agency.C*Age+Exp.C*Age,data=UV[UV$AgeYears<=9,])
+summary(lm.out)
+
+lm.out = lm(UV2~Robot*Age+Agency.C*Age+Exp.C*Age,data=UV[UV$AgeYears>9,])
+summary(lm.out)
+```
+###Sample Older than 4
+
+```{r age_filter_4}
+#UV = UV[UV$AgeYears>=3,]
+UV4 = UV[UV$AgeYears>=4,]
+```
+
+```{r center_variables_4}
+UV4$Agency.C = scale(UV4$Agency,center = T, scale = T)
+UV4$Exp.C = scale(UV4$Exp,center = T, scale = T)
+UV4$Mind.C = scale(UV4$Mind, center = T, scale = T)
+UV4$Age.C = scale(UV4$Age, center = T, scale = T)
+
+UV4$AGscore.C = scale(UV4$AGscore, center = T, scale = T)
+UV4$EXPscore.C = scale(UV4$EXPscore, center = T, scale = T)
+UV4$MINDscore.C = scale((UV4$AGscore+UV4$EXPscore)/2,center=T,scale=T)
+
+UV4$Robot = ifelse(UV4$Order==1," Machine-like"," Human-like")
+#UV4$Robot = factor(UV4$Robot,levels(factor(UV4$Robot))[c(2,1)])
+
+UV4$Robot.C = ifelse(UV4$Order==1,-1,1)
+
+UV4$UV3.diff = UV4$UV3-UV4$UVindex3.Nao
+UV4$UV2.diff = UV4$UV2-UV4$UVindex2.Nao
+UV4$UVscore.diff = UV4$UVscore-UV4$UV.score.Nao
+```
+
+```{r UV_regression_4}
+lm.out = lm(UV2~UVindex2.Nao*Age.C,data=UV4)
+summary(lm.out)
+
+lm.out = lm(UV2~Robot*Age.C,data=UV4)
+summary(lm.out)
+
+lm.out = lm(UV2~Robot*Age.C+UVindex2.Nao*Age.C,data=UV4)
+summary(lm.out)
+
+lm.out = lm(UV2~Robot*Age.C+UVindex2.Nao,data=UV4)
+summary(lm.out)
+```
+
+```{r UV_moderation_4}
+#Y = UV2.diff
+#moderator = Age
+#X = Robot
+
+UV4$RobotXAge = UV4$Robot.C*UV4$Age.C
+
+lm.out = lm(UV2~Robot+Age.C+RobotXAge,data=UV4)
+summary(lm.out)
+
+model <- '
+  ## Direct effects
+  UV2 ~ c1*Robot.C
+  UV2 ~ c2*Age.C
+  UV2 ~ c4*RobotXAge
+  rob.4years := c1 + c4*-1.6 # 4 years
+  rob.6years := c1 + c4*-.94 # 6 years
+  rob.8years := c1 + c4*-.26 # 8 years
+  rob.9years := c1 + c4*.079 # 9 years exactly
+  rob.10years := c1 + c4*.42 # 10 years
+  rob.12years := c1 + c4*1.1 # 12 years
+  rob.14years := c1 + c4*1.75 # 14 years
+  rob.16years := c1 + c4*2.47 # 16 years
+  '
+         
+fit <- sem(model, data = UV4, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r interaction_plot_4, fig.height=6,fig.width=6.5}
+lm.out.back = lm(UV2~AgeYears,
+            data=UV4[UV4$Order==1,])
+lm.out.front = lm(UV2~AgeYears,
+            data=UV4[UV4$Order==2,])
+
+agevalues <- seq(3.1111, 17.6111, length.out = 239)
+p.back <- predict(lm.out.back,list(AgeYears = agevalues))
+p.front <- predict(lm.out.front,list(AgeYears = agevalues))
+{par(pty="s")
+  plot(jitter(UV4$AgeYears),
+       jitter(UV4$UV2),
+       pch=20,
+       col=ifelse(UV4$Order==1,"black","gray"),
+       ylab="Feelings of Uncanniness",
+       xlab = "Age (Years)")
+  lines(agevalues, p.back, col = "black", lwd = 3)
+  lines(agevalues, p.front, col = "gray", lwd = 3)
+  legend(x = 13,
+         y = 4, 
+         c('Machine-Like','Human-Like'),
+         lty=c(1,1),
+         lwd=c(3,3),
+         col=c("black","gray"),
+         cex=.75)}
+
+#geom_line(data=dataset, aes_string(x=varx, y=vary))
+#theme(aspect.ratio=1)
+
+#lm.out = lm(UV2.diff~AgeYears*Order,data=UV4)
+#pander(summary(lm.out), caption = "full sample regression")
+
+#pander(lm.beta(lm.out))
+```
+
+```{r UV_predictors_4}
+lm.out = lm(UV2 ~ Robot*Age.C+Mind.C*Age.C,data=UV4)
+summary(lm.out)
+
+lm.out = lm(UV2 ~ Robot*Age.C+Agency.C*Age.C+Exp.C*Age.C,data=UV4)
+summary(lm.out)
+sqrt(vif(lm.out))>2
+```
+
+```{r predictors_moderation_4}
+#Y = UV2.diff
+#moderator = Age
+#X = Robot
+
+UV4$RobotXAge = UV4$Robot.C*UV4$Age.C
+UV4$AgencyXAge = UV4$Agency.C*UV4$Age.C
+UV4$ExpXAge = UV4$Exp.C*UV4$Age.C
+
+lm.out = lm(UV2~Robot+Agency.C+Exp.C+Age.C+RobotXAge+AgencyXAge+ExpXAge,data=UV4)
+summary(lm.out)
+
+model <- '
+  ## Direct effects
+  UV2 ~ c1*Robot.C
+  UV2 ~ c2*Agency.C
+  UV2 ~ c3*Exp.C
+  UV2 ~ c4*Age.C
+  UV2 ~ c5*RobotXAge
+  UV2 ~ c6*AgencyXAge
+  UV2 ~ c7*ExpXAge
+  ## Test of simple slopes
+  rob.4years := c1 + c5*-1.6 # 4 years
+  rob.6years := c1 + c5*-.94 # 6 years
+  rob.8years := c1 + c5*-.26 # 8 years
+  rob.9years := c1 + c5*.079 # 9 years exactly
+  rob.10years := c1 + c5*.42 # 10 years
+  rob.12years := c1 + c5*1.1 # 12 years
+  rob.14years := c1 + c5*1.75 # 14 years
+  rob.16years := c1 + c5*2.47 # 16 years
+  agency.4years := c2 + c6*-1.6 # 4 years
+  agency.6years := c2 + c6*-.94 # 6 years
+  agency.8years := c2 + c6*-.26 # 8 years
+  agency.9years := c2 + c6*.079 # 9 years exactly
+  agency.10years := c2 + c6*.42 # 10 years
+  agency.12years := c2 + c6*1.1 # 12 years
+  agency.14years := c2 + c6*1.75 # 14 years
+  agency.16years := c2 + c6*2.47 # 16 years
+  exp.4years := c3 + c7*-1.6 # 4 years
+  exp.6years := c3 + c7*-.94 # 6 years
+  exp.8years := c3 + c7*-.26 # 8 years
+  exp.9years := c3 + c7*.079 # 9 years exactly
+  exp.10years := c3 + c7*.42 # 10 years
+  exp.12years := c3 + c7*1.1 # 12 years
+  exp.14years := c3 + c7*1.75 # 14 years
+  exp.16years := c3 + c7*2.47 # 16 years
+  '
+         
+fit <- sem(model, data = UV4, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r}
+lm.out = lm(UV2 ~ Robot*Age.C+Agency.C*Age.C+Exp.C*Age.C,data=UV4[UV4$AgeYears<=9,])
+summary(lm.out)
+sqrt(vif(lm.out))>2
+
+UV9 = UV[UV$AgeYears>9,]
+
+UV9$Agency.C = scale(UV9$Agency,center = T, scale = T)
+UV9$Exp.C = scale(UV9$Exp,center = T, scale = T)
+UV9$Mind.C = scale(UV9$Mind, center = T, scale = T)
+UV9$Age.C = scale(UV9$Age, center = T, scale = T)
+
+UV9$AGscore.C = scale(UV9$AGscore, center = T, scale = T)
+UV9$EXPscore.C = scale(UV9$EXPscore, center = T, scale = T)
+UV9$MINDscore.C = scale((UV9$AGscore+UV9$EXPscore)/2,center=T,scale=T)
+
+UV9$Robot = ifelse(UV9$Order==1," Machine-like"," Human-like")
+#UV4$Robot = factor(UV4$Robot,levels(factor(UV4$Robot))[c(2,1)])
+
+UV9$Robot.C = ifelse(UV9$Order==1,-1,1)
+
+UV9$UV3.diff = UV9$UV3-UV9$UVindex3.Nao
+UV9$UV2.diff = UV9$UV2-UV9$UVindex2.Nao
+UV9$UVscore.diff = UV9$UVscore-UV9$UV.score.Nao
+
+UV9$RobotXAge = UV9$Robot.C*UV9$Age.C
+UV9$AgencyXAge = UV9$Agency.C*UV9$Age.C
+UV9$ExpXAge = UV9$Exp.C*UV9$Age.C
+
+lm.out = lm(UV2 ~ Robot*Age.C+Agency.C*Age.C+Exp.C*Age.C,data=UV9)
+summary(lm.out)
+sqrt(vif(lm.out))>2
+```
+
+```{r predictors_moderation_9}
+#Y = UV2.diff
+#moderator = Age
+#X = Robot
+
+lm.out = lm(UV2~Robot+Agency.C+Exp.C+Age.C+RobotXAge+AgencyXAge+ExpXAge,data=UV9)
+summary(lm.out)
+
+model <- '
+  ## Direct effects
+  UV2 ~ c1*Robot.C
+  UV2 ~ c2*Agency.C
+  UV2 ~ c3*Exp.C
+  UV2 ~ c4*Age.C
+  UV2 ~ c5*RobotXAge
+  UV2 ~ c6*AgencyXAge
+  UV2 ~ c7*ExpXAge
+  ## Test of simple slopes
+  rob.10years := c1 + c5*-0.9047 # 10 years
+  rob.12years := c1 + c5*0.07849 # 12 years
+  rob.14years := c1 + c5*1.031 # 14 years
+  rob.16years := c1 + c5*2.061 # 16 years
+  agency.10years := c2 + c6*-0.9047 # 10 years
+  agency.12years := c2 + c6*0.07849 # 12 years
+  agency.14years := c2 + c6*1.031 # 14 years
+  agency.16years := c2 + c6*2.061 # 16 years
+  exp.10years := c3 + c7*-0.9047 # 10 years
+  exp.12years := c3 + c7*0.07849 # 12 years
+  exp.14years := c3 + c7*1.031 # 14 years
+  exp.16years := c3 + c7*2.061 # 16 years
+  '
+         
+fit <- sem(model, data = UV9, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+##Controlling for Baseline - Regressions
+###Full Sample
+```{r original_regressions_nao_ixn}
+lm.out = lm(UV2~Robot*Age.C+Agency.C*Age.C+Exp.C*Age.C+UVindex2.Nao*Age.C,data=UV)
+summary(lm.out)
+
+sqrt(vif(lm.out)) > 2
+```
+
+```{r original_regressions_nao}
+lm.out = lm(UV2~Robot*Age.C+Agency.C*Age.C+Exp.C*Age.C+UVindex2.Nao,data=UV)
+summary(lm.out)
+
+sqrt(vif(lm.out)) > 2
+```
+
+```{r original_regressions_agency_nao_ixn}
+lm.out = lm(UV2~Robot*Age.C+Agency.C*Age.C+UVindex2.Nao*Age.C,data=UV)
+summary(lm.out)
+
+sqrt(vif(lm.out)) > 2
+```
+
+```{r original_regressions_agency_nao}
+lm.out = lm(UV2~Robot*Age.C+Agency.C*Age.C+UVindex2.Nao,data=UV)
+summary(lm.out)
+
+sqrt(vif(lm.out)) > 2
+```
+
+```{r original_regressions_mind_centered_nao_ixn}
+lm.out = lm(UV2~Robot*Age.C+Mind.C*Age.C+UVindex2.Nao*Age.C,data=UV)
+summary(lm.out)
+
+sqrt(vif(lm.out)) > 2
+```
+
+```{r original_regressions_mind_centered_nao}
+lm.out = lm(UV2~Robot*Age.C+Mind.C*Age.C+UVindex2.Nao,data=UV)
+summary(lm.out)
+
+sqrt(vif(lm.out)) > 2
+```
+
+##Difference Score Regressions (New)
+```{r}
+t.test(UVindex2.Nao~Robot,UV)
+aggregate(UVindex2.Nao~Robot,UV,FUN=mean)
+aggregate(UVindex2.Nao~Robot,UV,FUN=sd)
+
+lm.out = lm(UVindex2.Nao~Robot*Age.C,data=UV)
+summary(lm.out)
+```
+
+
+```{r regressions_diffscore}
+
+lm.out = lm(UV2.diff~Robot*Age.C+Mind.C*Age.C,data=UV)
+summary(lm.out)
+#pander(lm.beta(lm.out))
+
+qqPlot(lm.out, main="QQ Plot")
+outlierTest(lm.out)
+leveragePlots(lm.out)
+ncvTest(lm.out)
+vif(lm.out)
+sqrt(vif(lm.out)) > 2
+durbinWatsonTest(lm.out)
+
+{hist(UV$UV2.diff)
+  abline(v = mean(UV$UV2.diff,na.rm=T),
+         col = "royalblue",
+         lwd = 2)
+  abline(v = median(UV$UV2.diff,na.rm=T),
+         col = "red",
+         lwd = 2)}
+
+hist(UV$UV2)
+```
+
+```{r regressions_diffscore_split}
+
+lm.out = lm(UV2.diff~Robot*Age.C+Mind.C*Age.C,data=UV9)
+summary(lm.out)
+#pander(lm.beta(lm.out))
+```
+
+```{r moderation}
+#Y = UV2.diff
+#moderator = Age
+#X = Robot
+
+UV$RobotXAge = UV$Robot.C*UV$Age.C
+UV$MindXAge = UV$Mind.C*UV$Age.C
+
+lm.out = lm(UV2.diff~Robot+Age.C+Mind.C+RobotXAge+MindXAge,data=UV)
+summary(lm.out)
+
+model <- '
+  ## Direct effects
+  UV2.diff ~ c1*Robot.C
+  UV2.diff ~ c2*Age.C
+  UV2.diff ~ c3*Mind.C
+  UV2.diff ~ c4*RobotXAge
+  UV2.diff ~ c5*MindXAge
+  ## Conditional direct effect
+  rob.4years := c1 + c4*-1.52 # 4 years
+  rob.6years := c1 + c4*-.86 # 6 years
+  rob.8years := c1 + c4*-.203051 # 8 years
+  rob.9years := c1 + c4*.125849 # 9 years exactly
+  rob.10years := c1 + c4*.4547489 # 10 years
+  rob.12years := c1 + c4*1.116 # 12 years
+  rob.14years := c1 + c4*1.75 # 14 years
+  rob.16years := c1 + c4*2.448 # 16 years
+  mind.4years := c3 + c5*-1.52 # 4 years
+  mind.6years := c3 + c5*-.86 # 6 years
+  mind.8years := c3 + c5*-.203051 # 8 years
+  mind.9years := c3 + c5*.125849 # 9 years exactly
+  mind.10years := c3 + c5*.4547489 # 10 years
+  mind.12years := c3 + c5*1.116 # 12 years
+  mind.14years := c3 + c5*1.75 # 14 years
+  mind.16years := c3 + c5*2.448 # 16 years
+  '
+         
+fit <- sem(model, data = UV, se = "bootstrap", test = "bootstrap")
+summary(fit, standardized = TRUE, rsq = TRUE)
+parameterEstimates(fit)
+```
+
+```{r interaction_plot_diff, fig.height=6,fig.width=6.5}
+lm.out.back = lm(UV2.diff~AgeYears,
+            data=UV[UV$Order==1,])
+lm.out.front = lm(UV2.diff~AgeYears,
+            data=UV[UV$Order==2,])
+
+agevalues <- seq(3.1111, 17.6111, length.out = 239)
+p.back <- predict(lm.out.back,list(AgeYears = agevalues))
+p.front <- predict(lm.out.front,list(AgeYears = agevalues))
+{par(pty="s")
+  plot(jitter(UV$AgeYears),
+       jitter(UV$UV2.diff),
+       pch=20,
+       col=ifelse(UV$Order==1,"blue","red"),
+       ylab="Uncanniness scores",
+       xlab = "Age (Years)")
+  lines(agevalues, p.back, col = "blue", lwd = 3)
+  lines(agevalues, p.front, col = "red", lwd = 3)
+  legend(x = 12.75,
+         y = -2.25, 
+         c('Machine-Like','Human-Like'),
+         lty=c(1,1),
+         lwd=c(3,3),
+         col=c("blue","red"),
+         cex=.75)}
+
+#geom_line(data=dataset, aes_string(x=varx, y=vary))
+#theme(aspect.ratio=1)
+
+lm.out = lm(UV2.diff~AgeYears*Order,data=UV)
+pander(summary(lm.out), caption = "full sample regression")
+
+pander(lm.beta(lm.out))
+```
+
+##Mixed Methods Analysis
+###Full Sample
+```{r format_data_long}
+uv.back = melt(UV[,c("UV2.Back","UV2.Nao","Age.C","SubID")], id=c("Age.C","SubID"))
+uv.front = melt(UV[,c("UV2.Front","UV2.Nao","Age.C","SubID")], id=c("Age.C","SubID"))
+
+uv.back = uv.back[complete.cases(uv.back),]
+uv.front = uv.front[complete.cases(uv.front),]
+```
+
+```{r within_subjects_nao_comparison}
+library(nlme)
+
+#UVindex2.Back
+#UVindex2.Nao
+#UVindex2.Front
+
+#Age.C
+
+UV.mixed = melt(UV[c("UVindex2.Back","UVindex2.Nao","UVindex2.Front","Age.C","SubID")], id=c("SubID","Age.C"))
+UV.mixed = UV.mixed[complete.cases(UV.mixed),]
+
+UV.back.mixed = UV.mixed[UV.mixed$variable=="UVindex2.Back"|UV.mixed$variable=="UVindex2.Nao",] 
+UV.front.mixed = UV.mixed[UV.mixed$variable=="UVindex2.Front"|UV.mixed$variable=="UVindex2.Nao",] 
+
+mod = lme(value ~ variable*Age.C, 
+          random=~ 1|SubID,
+          data = UV.mixed)
+summary(mod)
+
+mod = lme(value ~ variable*Age.C, 
+          random=~ 1|SubID,
+          data = UV.back.mixed)
+summary(mod)
+
+UV.front.mixed$variable = factor(UV.front.mixed$variable)
+UV.front.mixed$variable = factor(UV.front.mixed$variable, levels=rev(levels(UV.front.mixed$variable)))
+mod = lme(value ~ variable*Age.C, 
+          random=~ 1|SubID,
+          data = UV.front.mixed)
+summary(mod)
+```
+
+```{r format_data_mixed_agency_exp}
+UV.mixed.1 = melt(UV[c("UVindex2.Back","UVindex2.Nao","UVindex2.Front","Age.C","AgeYears","SubID")], id=c("SubID","Age.C","AgeYears"))
+colnames(UV.mixed.1) <- c("SubID", "Age.C", "AgeYears", "Robot", "UV2")
+
+UV.mixed.2 = melt(UV[c("UVindex3.Back","UVindex3.Nao","UVindex3.Front","Age.C","AgeYears","SubID")], id=c("SubID","Age.C","AgeYears"))
+colnames(UV.mixed.2) <- c("SubID", "Age.C", "AgeYears", "Robot", "UV3")
+
+UV.mixed.3 = melt(UV[c("Agency.Back","Agency.Front","Agency.Nao","Age.C","AgeYears","SubID")], id=c("SubID","Age.C","AgeYears"))
+colnames(UV.mixed.3) <- c("SubID", "Age.C", "AgeYears", "Robot", "Agency")
+
+UV.mixed.4 = melt(UV[c("Exp.Back","Exp.Front","Exp.Nao","Age.C","AgeYears","SubID")], id=c("SubID","Age.C","AgeYears"))
+colnames(UV.mixed.4) <- c("SubID", "Age.C", "AgeYears", "Robot", "Exp")
+
+UV.mixed.1$Robot = ifelse(UV.mixed.1$Robot=="UVindex2.Back","Back",
+                          ifelse(UV.mixed.1$Robot=="UVindex2.Front",
+                                 "Front","Nao"))
+UV.mixed.2$Robot = ifelse(UV.mixed.2$Robot=="UVindex3.Back","Back",
+                          ifelse(UV.mixed.2$Robot=="UVindex3.Front",
+                                 "Front","Nao"))
+UV.mixed.3$Robot = ifelse(UV.mixed.3$Robot=="Agency.Back","Back",
+                          ifelse(UV.mixed.3$Robot=="Agency.Front","Front","Nao"))
+UV.mixed.4$Robot = ifelse(UV.mixed.4$Robot=="Exp.Back","Back",
+                          ifelse(UV.mixed.4$Robot=="Exp.Front","Front","Nao"))
+
+UV.mixed = merge(UV.mixed.1,UV.mixed.2)
+UV.mixed = merge(UV.mixed,UV.mixed.3)
+UV.mixed = merge(UV.mixed,UV.mixed.4)
+
+UV.mixed = UV.mixed[complete.cases(UV.mixed),]
+
+UV.mixed$Agency.C = scale(UV.mixed$Agency,center=T,scale=T)
+UV.mixed$Exp.C = scale(UV.mixed$Exp,center=T,scale=T)
+
+UV.mixed$Robot = as.factor(UV.mixed$Robot)
+UV.mixed$Robot.Nao = factor(UV.mixed$Robot, levels=c("Nao","Back","Front"))
+```
+
+```{r mixed_model_uv}
+mod = lme(UV2 ~ Robot*AgeYears, 
+          random=~ 1|SubID,
+          data = UV.mixed)
+summary(mod)
+```
+
+```{r mixed_model_agency_exp}
+mod = lme(UV2 ~ Robot*Age.C + Agency.C*Age.C + Exp.C*Age.C, 
+          random=~ 1|SubID,
+          data = UV.mixed)
+summary(mod)
+```
+
+
+```{r format_data_mixed_mind}
+UV.mixed.1 = melt(UV[c("UVindex2.Back","UVindex2.Nao","UVindex2.Front","Age.C","SubID")], id=c("SubID","Age.C"))
+colnames(UV.mixed.1) <- c("SubID", "Age.C", "Robot", "UV2")
+
+UV.mixed.2 = melt(UV[c("UVindex3.Back","UVindex3.Nao","UVindex3.Front","Age.C","AgeYears","SubID")], id=c("SubID","Age.C","AgeYears"))
+colnames(UV.mixed.2) <- c("SubID", "Age.C", "AgeYears", "Robot", "UV3")
+
+UV.mixed.3 = melt(UV[c("Mind.Back","Mind.Front","Mind.Nao","Age.C","SubID")], id=c("SubID","Age.C"))
+colnames(UV.mixed.3) <- c("SubID", "Age.C", "Robot", "Mind")
+
+UV.mixed.1$Robot = ifelse(UV.mixed.1$Robot=="UVindex2.Back","Back",
+                          ifelse(UV.mixed.1$Robot=="UVindex2.Front",
+                                 "Front","Nao"))
+UV.mixed.2$Robot = ifelse(UV.mixed.2$Robot=="UVindex3.Back","Back",
+                          ifelse(UV.mixed.2$Robot=="UVindex3.Front",
+                                 "Front","Nao"))
+UV.mixed.3$Robot = ifelse(UV.mixed.3$Robot=="Mind.Back","Back",
+                          ifelse(UV.mixed.3$Robot=="Mind.Front","Front","Nao"))
+
+UV.mixed = merge(UV.mixed.1,UV.mixed.2)
+UV.mixed = merge(UV.mixed,UV.mixed.3)
+
+UV.mixed = UV.mixed[complete.cases(UV.mixed),]
+
+UV.mixed$Mind.C = scale(UV.mixed$Mind,center=T,scale=T)
+```
+
+```{r mixed_model_mind}
+mod = lme(UV2 ~ Robot*Age.C + Mind.C*Age.C, 
+          random=~ 1|SubID,
+          data = UV.mixed)
+summary(mod)
+```
+
+###Sample Older than 4
+```{r format_data_long_4}
+uv.back = melt(UV4[,c("UV2.Back","UV2.Nao","Age.C","SubID")], id=c("Age.C","SubID"))
+uv.front = melt(UV4[,c("UV2.Front","UV2.Nao","Age.C","SubID")], id=c("Age.C","SubID"))
+
+uv.back = uv.back[complete.cases(uv.back),]
+uv.front = uv.front[complete.cases(uv.front),]
+```
+
+```{r within_subjects_nao_comparison_4}
+library(nlme)
+
+#UVindex2.Back
+#UVindex2.Nao
+#UVindex2.Front
+
+#Age.C
+
+UV.mixed = melt(UV4[c("UVindex2.Back","UVindex2.Nao","UVindex2.Front","Age.C","SubID")], id=c("SubID","Age.C"))
+UV.mixed = UV.mixed[complete.cases(UV.mixed),]
+
+UV.back.mixed = UV.mixed[UV.mixed$variable=="UVindex2.Back"|UV.mixed$variable=="UVindex2.Nao",] 
+UV.front.mixed = UV.mixed[UV.mixed$variable=="UVindex2.Front"|UV.mixed$variable=="UVindex2.Nao",] 
+
+mod = lme(value ~ variable*Age.C, 
+          random=~ 1|SubID,
+          data = UV.mixed)
+summary(mod)
+
+mod = lme(value ~ variable*Age.C, 
+          random=~ 1|SubID,
+          data = UV.back.mixed)
+summary(mod)
+
+UV.front.mixed$variable = factor(UV.front.mixed$variable)
+UV.front.mixed$variable = factor(UV.front.mixed$variable, levels=rev(levels(UV.front.mixed$variable)))
+mod = lme(value ~ variable*Age.C, 
+          random=~ 1|SubID,
+          data = UV.front.mixed)
+summary(mod)
+```
+
+```{r format_data_mixed_agency_exp_4}
+UV.mixed.1 = melt(UV4[c("UVindex2.Back","UVindex2.Nao","UVindex2.Front","Age.C","AgeYears","SubID")], id=c("SubID","Age.C","AgeYears"))
+colnames(UV.mixed.1) <- c("SubID", "Age.C", "AgeYears", "Robot", "UV2")
+
+UV.mixed.2 = melt(UV4[c("UVindex3.Back","UVindex3.Nao","UVindex3.Front","Age.C","AgeYears","SubID")], id=c("SubID","Age.C","AgeYears"))
+colnames(UV.mixed.2) <- c("SubID", "Age.C", "AgeYears", "Robot", "UV3")
+
+UV.mixed.3 = melt(UV4[c("Agency.Back","Agency.Front","Agency.Nao","Age.C","AgeYears","SubID")], id=c("SubID","Age.C","AgeYears"))
+colnames(UV.mixed.3) <- c("SubID", "Age.C", "AgeYears", "Robot", "Agency")
+
+UV.mixed.4 = melt(UV4[c("Exp.Back","Exp.Front","Exp.Nao","Age.C","AgeYears","SubID")], id=c("SubID","Age.C","AgeYears"))
+colnames(UV.mixed.4) <- c("SubID", "Age.C", "AgeYears", "Robot", "Exp")
+
+UV.mixed.1$Robot = ifelse(UV.mixed.1$Robot=="UVindex2.Back","Back",
+                          ifelse(UV.mixed.1$Robot=="UVindex2.Front",
+                                 "Front","Nao"))
+UV.mixed.2$Robot = ifelse(UV.mixed.2$Robot=="UVindex3.Back","Back",
+                          ifelse(UV.mixed.2$Robot=="UVindex3.Front",
+                                 "Front","Nao"))
+UV.mixed.3$Robot = ifelse(UV.mixed.3$Robot=="Agency.Back","Back",
+                          ifelse(UV.mixed.3$Robot=="Agency.Front","Front","Nao"))
+UV.mixed.4$Robot = ifelse(UV.mixed.4$Robot=="Exp.Back","Back",
+                          ifelse(UV.mixed.4$Robot=="Exp.Front","Front","Nao"))
+
+UV.mixed = merge(UV.mixed.1,UV.mixed.2)
+UV.mixed = merge(UV.mixed,UV.mixed.3)
+UV.mixed = merge(UV.mixed,UV.mixed.4)
+
+UV.mixed = UV.mixed[complete.cases(UV.mixed),]
+
+UV.mixed$Agency.C = scale(UV.mixed$Agency,center=T,scale=T)
+UV.mixed$Exp.C = scale(UV.mixed$Exp,center=T,scale=T)
+
+UV.mixed$Robot = as.factor(UV.mixed$Robot)
+UV.mixed$Robot.Nao = factor(UV.mixed$Robot, levels=c("Nao","Back","Front"))
+```
+
+```{r mixed_model_uv_4}
+mod = lme(UV2 ~ Robot*AgeYears, 
+          random=~ 1|SubID,
+          data = UV.mixed)
+summary(mod)
+```
+
+```{r mixed_model_agency_exp_4}
+mod = lme(UV2 ~ Robot*Age.C + Agency.C*Age.C + Exp.C*Age.C, 
+          random=~ 1|SubID,
+          data = UV.mixed)
+summary(mod)
+```
+
+```{r mixed_model_agency_exp_4_split}
+mod = lme(UV2 ~ Robot*Age.C + Agency.C*Age.C + Exp.C*Age.C, 
+          random=~ 1|SubID,
+          data = UV.mixed[UV.mixed$AgeYears<=9,])
+summary(mod)
+
+mod = lme(UV2 ~ Robot*Age.C + Agency.C*Age.C + Exp.C*Age.C, 
+          random=~ 1|SubID,
+          data = UV.mixed[UV.mixed$AgeYears>9,])
+summary(mod)
+```
+
+
+```{r format_data_mixed_mind_4}
+UV.mixed.1 = melt(UV4[c("UVindex2.Back","UVindex2.Nao","UVindex2.Front","Age.C","SubID")], id=c("SubID","Age.C"))
+colnames(UV.mixed.1) <- c("SubID", "Age.C", "Robot", "UV2")
+
+UV.mixed.2 = melt(UV4[c("UVindex3.Back","UVindex3.Nao","UVindex3.Front","Age.C","AgeYears","SubID")], id=c("SubID","Age.C","AgeYears"))
+colnames(UV.mixed.2) <- c("SubID", "Age.C", "AgeYears", "Robot", "UV3")
+
+UV.mixed.3 = melt(UV4[c("Mind.Back","Mind.Front","Mind.Nao","Age.C","SubID")], id=c("SubID","Age.C"))
+colnames(UV.mixed.3) <- c("SubID", "Age.C", "Robot", "Mind")
+
+UV.mixed.1$Robot = ifelse(UV.mixed.1$Robot=="UVindex2.Back","Back",
+                          ifelse(UV.mixed.1$Robot=="UVindex2.Front",
+                                 "Front","Nao"))
+UV.mixed.2$Robot = ifelse(UV.mixed.2$Robot=="UVindex3.Back","Back",
+                          ifelse(UV.mixed.2$Robot=="UVindex3.Front",
+                                 "Front","Nao"))
+UV.mixed.3$Robot = ifelse(UV.mixed.3$Robot=="Mind.Back","Back",
+                          ifelse(UV.mixed.3$Robot=="Mind.Front","Front","Nao"))
+
+UV.mixed = merge(UV.mixed.1,UV.mixed.2)
+UV.mixed = merge(UV.mixed,UV.mixed.3)
+
+UV.mixed = UV.mixed[complete.cases(UV.mixed),]
+
+UV.mixed$Mind.C = scale(UV.mixed$Mind,center=T,scale=T)
+```
+
+```{r mixed_model_mind_4}
+mod = lme(UV2 ~ Robot*Age.C + Mind.C*Age.C, 
+          random=~ 1|SubID,
+          data = UV.mixed)
+summary(mod)
+```
+

@@ -49,13 +49,13 @@ s.error <- function(x) sd(x,na.rm=TRUE)/sqrt(length(x))
 
 ```{r load_file}
 #filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - UV - First Robot.sav"
-filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - Data.sav"
+filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/1.0/UV - Data.sav"
 UV <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=FALSE)
 UV <- UV[which((UV$Order=='1')&(UV$Condition==1)|(UV$Order=='2')&(UV$Condition==2)|(UV$Order=='3')&(UV$Condition==1)|(UV$Order=='4')&(UV$Condition==2)),]
 ```
 
 ```{r calculate_variables}
-UV$Age = (year(as.period(new_interval(UV$DOB, UV$DOT)))*12) + month(as.period(new_interval(UV$DOB, UV$DOT))) + (day(as.period(new_interval(UV$DOB, UV$DOT)))/30)
+UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interval(UV$DOB, UV$DOT))) + (day(as.period(interval(UV$DOB, UV$DOT)))/30)
 UV$UV_index = (UV$UV1 + UV$UV2) / 2
 UV$CondByAge = UV$Condition * UV$Age
 UV$AgeYears = UV$Age/12

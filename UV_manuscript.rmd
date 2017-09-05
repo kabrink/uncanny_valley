@@ -160,7 +160,7 @@ barByAge <-function(v.back,v.front,data,title){
   #produce rounded values of the matrix for displaying on the plot
   means.matR <- round(means.mat,2) 
   #determine y-axis range
-  g.range = range(0,ceiling(max(means.mat)+1)) 
+  g.range = range(floor(min(means.mat)-1),ceiling(max(means.mat)+1)) 
   
   plot.new()
   barCenters <- barplot(means.mat, 
@@ -168,7 +168,7 @@ barByAge <-function(v.back,v.front,data,title){
                         legend = rownames(means.mat), 
                         beside = TRUE, 
                         ylim=g.range, 
-                        yaxt='n',
+                        #yaxt='n',
                         las=1,
                         main=title,
                         xlab="Age (years)", 
@@ -176,10 +176,10 @@ barByAge <-function(v.back,v.front,data,title){
                         cex.lab = responseAxis, 
                         cex.axis = responseAxis)
   #change y axis labels
-  axis(2, 
-       at = c(0:3), 
-       labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
-       cex.axis = responseAxis) 
+  #axis(2, 
+       #at = c(:3), 
+       #labels = c('Not at all', 'A little bit', 'A medium amount', 'A lot'), 
+       #cex.axis = responseAxis) 
   
   #add +/- 1 standard error bars
   arrows(barCenters, 
@@ -255,8 +255,9 @@ barByAgeGG <-function(v.back,v.front,v.nao,data,title){
                 axis.text.y=element_text(angle=90, hjust=.5, size=24),
                 axis.title.y=element_text(margin=margin(0,20,0,0)),
                 legend.background = element_rect(),
-                legend.key.size = unit(2, "cm"))
-  p = p + scale_y_continuous(limits = c(0,2.5),
+                legend.key.size = unit(2, "cm"),
+                legend.position="bottom")
+  p = p + scale_y_continuous(limits = c(0,3),
                          breaks=0:3,
                          labels=c('Not at all', 'A little bit', 'A medium amount', 'A lot'),
                          expand = waiver())
@@ -333,7 +334,7 @@ barByAge_3robots <-function(v.back,v.front,v.nao,data,title){
 ```{r load_file}
 #library Hmisc
 #load SPSS data file
-filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/UV - Data.sav"
+filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/1.0/UV - Data.sav"
 UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F) #label DOB and DOT as date variables and import numerical values not string values for variables
 ```
 
@@ -405,6 +406,7 @@ for (var in  c("Sex","DOB","DOT","Order","UV1.Nao","UV2.Nao","UV3.Nao","A1.Nao",
 #library lubridate
 #calculate age of participant in months
 UV$Age = (year(as.period(interval(UV$DOB, UV$DOT)))*12) + month(as.period(interval(UV$DOB, UV$DOT))) + (day(as.period(interval(UV$DOB, UV$DOT)))/30)
+UV$Age.C = as.numeric(scale(UV$Age,center=T,scale=T))
 
 #calculate age of participant in years
 UV$AgeYears = UV$Age/12
@@ -413,6 +415,8 @@ UV$AgeYears = UV$Age/12
 UV$AgeGroup3 = factor(ifelse(UV$Age<96, "1", ifelse(UV$Age<144, "2", "3")))
 UV$AgeGroup = factor(ifelse(UV$Age<72, "1", ifelse(UV$Age<108, "2", ifelse(UV$Age<144, "3", "4"))))
 UV$AgeGroup5 = factor(ifelse(UV$Age<72, "1", ifelse(UV$Age<96, "2", ifelse(UV$Age<120, "3", ifelse(UV$Age<144, "4", "5")))))
+
+UV$AgeGroup2 = factor(ifelse(UV$Age<mean(UV$Age), "1", "2"))
 
 UV = UV[which(UV$AgeYears>=1),]
 
@@ -626,15 +630,18 @@ a.back.factor3 = psych::alpha(UV.old[back.factor3],check.keys=TRUE) #alpha = 0.7
 ```
 
 ##Factors
-```{r Uncanny_Index, fig.width=18,fig.height=8}
+```{r Uncanny_Index, fig.width=16,fig.height=10}
 #calculate creepiness factor for each robot
 UV$UVindex.Back = (UV$UV1.Back+UV$UV2.Back)/2 
 UV$UVindex.Front = (UV$UV1.Front+UV$UV2.Front)/2 
 UV$UVindex.Nao = (UV$UV1.Nao+UV$UV2.Nao)/2
 
+UV$UVindex.Nao.C = as.numeric(scale(UV$UVindex.Nao,center=T,scale=T))
+
 pander(xtabs(~UV$UV1.Nao+UV$AgeGroup))
 barByAge(UV$UVindex.Back,UV$UVindex.Front,UV, "Reports of Creepiness")
 barByAge_3robots(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanniness")
+
 barByAgeGG(UV$UVindex.Back,UV$UVindex.Front,UV$UVindex.Nao,UV,"Uncanniness")
 
 t.test(UV$UVindex.Back[which(UV$AgeGroup==1|UV$AgeGroup==2)],UV$UVindex.Front[which(UV$AgeGroup==1|UV$AgeGroup==2)])
@@ -674,11 +681,14 @@ cohensD(UV$UVindex.Back[which(UV$AgeGroup5==5)],UV$UVindex.Front[which(UV$AgeGro
 
 ```
 
-```{r Agency_Index,fig.width=18,fig.height=8}
+```{r Agency_Index,fig.width=16,fig.height=10}
 #calculate agency factor for each robot (perceptions of agency)
 UV$Agency.Back = (UV$IS1.Back+UV$IS2.Back+UV$A2.Back)/3
 UV$Agency.Front = (UV$IS1.Front+UV$IS2.Front+UV$A2.Front)/3
 UV$Agency.Nao = (UV$IS1.Nao+UV$IS2.Nao+UV$A2.Nao)/3
+
+UV$Agency.Back.C = as.numeric(scale(UV$Agency.Back,center=T,scale=T))
+UV$Agency.Front.C = as.numeric(scale(UV$Agency.Front,center=T,scale=T))
 
 barByAge_3robots(UV$Agency.Back,UV$Agency.Front,UV$Agency.Nao,UV, "Attributions of Agency")
 barByAgeGG(UV$Agency.Back,UV$Agency.Front,UV$Agency.Nao,UV,"Agency")
@@ -692,6 +702,9 @@ t.test(UV[which(UV$AgeGroup==4),]$Agency.Back,UV[which(UV$AgeGroup==4),]$Agency.
 UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back+UV$IS6.Back)/3
 UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front+UV$IS6.Front)/3
 UV$Exp.Nao = (UV$IS3.Nao+UV$IS5.Nao+UV$IS6.Nao)/3
+
+UV$Exp.Back.C = as.numeric(scale(UV$Exp.Back,center=T,scale=T))
+UV$Exp.Front.C = as.numeric(scale(UV$Exp.Front,center=T,scale=T))
 
 #UV$Exp.Back = (UV$IS3.Back+UV$IS5.Back)/2
 #UV$Exp.Front = (UV$IS3.Front+UV$IS5.Front)/2
@@ -1871,3 +1884,104 @@ t.test(UV.old$UVindex.Back,UV.old$UVindex.Nao, paired = T)
 cohensD(UV.old$UVindex.Back,UV.old$UVindex.Nao, method='paired')
 
 ```
+
+
+```{r}
+UV$UV.score[which(!is.na(UV$UVindex.Back))] = UV$UVindex.Back[which(!is.na(UV$UVindex.Back))]
+UV$UV.score[which(!is.na(UV$UVindex.Front))] = UV$UVindex.Front[which(!is.na(UV$UVindex.Front))]
+
+UV$Agency.C[which(!is.na(UV$Agency.Back.C))] = UV$Agency.Back.C[which(!is.na(UV$Agency.Back.C))]
+UV$Agency.C[which(!is.na(UV$Agency.Front.C))] = UV$Agency.Front.C[which(!is.na(UV$Agency.Front.C))]
+
+UV$Exp.C[which(!is.na(UV$Exp.Back.C))] = UV$Exp.Back.C[which(!is.na(UV$Exp.Back.C))]
+UV$Exp.C[which(!is.na(UV$Exp.Front.C))] = UV$Exp.Front.C[which(!is.na(UV$Exp.Front.C))]
+
+UV$Condition = ifelse(!is.na(UV$UVindex.Back),"Back","Front")
+UV$Condition[which(is.na(UV$UV.score))] = NA
+
+UV$Age2 = UV$Age.C^2
+
+lm.out = lm(UV.score~UVindex.Nao.C+Condition*Age.C+Condition*Age2,
+            data=UV)
+
+plot(lm.out)
+
+pander(summary(lm.out), caption = "full sample regression")
+
+pander(lm.beta(lm.out), caption = "beta estimates of full sample regression")
+
+```
+
+```{r}
+hist(UV$UV.score)
+
+UV$diff = UV$UV.score-UV$UVindex.Nao
+
+pander(Anova(lm(diff~Condition*AgeGroup2,
+              data=UV), type='II'))
+
+barByAge(v.back = UV$diff[which(UV$Condition=="Back")],v.front = UV$diff[which(UV$Condition=="Front")],UV,"")
+
+lm.out = lm(diff~Condition*Age.C+Condition*Age2,
+            data=UV)
+
+plot(lm.out)
+
+pander(summary(lm.out), caption = "full sample regression")
+```
+
+```{r}
+UV$Age2 = UV$Age.C^2
+UV$Age3 = UV$Age.C^3
+
+lm.out = lm(UV.score~Condition*Age.C+Condition*Age2+Condition*Age3+UVindex.Nao.C,
+            data=UV)
+
+pander(summary(lm.out), caption = "full sample regression")
+
+lm.out = lm(diff~Condition*Age.C+Condition*Age2+Condition*Age3,
+            data=UV)
+
+pander(summary(lm.out), caption = "full sample regression")
+
+plot(lm.out)
+
+lm.out = lm(diff~Agency.C*Age.C+Agency.C*Age2,
+            data=UV)
+pander(summary(lm.out), caption = "full sample regression")
+
+lm.out = lm(diff~Agency.C*Age.C+Condition*Age.C,
+            data=UV)
+lm.beta(lm.out)
+pander(summary(lm.out), caption = "full sample regression")
+
+lm.out = lm(diff~Exp.C*Age.C+Condition*Age.C,
+            data=UV[which(UV$Age>mean(UV$Age)),])
+pander(summary(lm.out), caption = "full sample regression")
+
+lm.out = lm(diff~Agency.C*Age.C+Condition*Age.C,data=UV)
+pander(summary(lm.out), caption = "full sample regression")
+
+```
+
+```{r}
+library(interplot)
+
+
+m_cond = lm(diff~Age.C*Condition+I(Age.C^2)*Condition+I(Age.C^3)*Condition,data=UV)
+summary(m_cond)
+interplot(m = m_cond, var1 = "Condition", var2 = "Age.C")
+
+
+m_agency = lm(diff~Age.C*Agency.C+Condition,data=UV)
+summary(m_agency)
+interplot(m = m_agency, var1 = "Agency.C", var2 = "Age.C")
+```
+
+```{r}
+UV$d.back = UV$UVindex.Back-UV$UVindex.Nao
+UV$d.front = UV$UVindex.Front-UV$UVindex.Nao
+
+barByAge(UV$d.back,UV$d.front,UV,"diff")
+```
+

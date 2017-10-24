@@ -201,6 +201,7 @@ barByAge <-function(v.back,v.front,v.nao,data,title){
 #load SPSS data file
 filename <- "/Volumes/lsa-research01/ALL STUDIES/Current Studies/Uncanny Valley/1.0/UV - Data.sav"
 UV.original <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=F) #label DOB and DOT as date variables and import numerical values not string values for variables
+UV.labels <- spss.get(filename,datevars=c("DOB","DOT"),use.value.labels=T)
 ```
 
 ```{r formatting}

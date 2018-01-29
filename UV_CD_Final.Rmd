@@ -20,6 +20,11 @@ library(lsr)
 library(reshape2) #melt
 library(lavaan)
 library(car) #reverse coding
+library(wesanderson)
+library(pwr)
+
+wesanderson = "GrandBudapest2"
+
 ```
 
 ```{r standard_error}
@@ -125,7 +130,7 @@ barByAge <-function(v.back,v.front,v.nao,data,title){
   
   ggplot(data = plotData, aes(x = `Age Group`, y = plotData[title], fill = Robot)) + 
     geom_bar(width = .65, position=position_dodge(), stat="identity") + 
-    scale_fill_grey() + 
+    scale_fill_grey(start=.8,end=.3) + 
     geom_errorbar(aes(ymin=plotData[title]-SE, ymax=plotData[title]+SE),
                   width=.2, #Line weights
                   size = 1, #Width of the error bars
@@ -138,7 +143,7 @@ barByAge <-function(v.back,v.front,v.nao,data,title){
           axis.title.y=element_text(margin=margin(0,20,0,0), size=14), #set position of y-axis title
           legend.background = element_rect(), #empty box legend
           legend.key.size = unit(1, "cm"), #set size of boxes for legend
-          #legend.position="bottom", #set position of legend at bottom
+          legend.position="bottom", #set position of legend at bottom
           panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank(),
           panel.background = element_blank(), 
@@ -148,9 +153,81 @@ barByAge <-function(v.back,v.front,v.nao,data,title){
                      labels=c('Not at all', 'A little bit', 'A medium amount', 'A lot'), #set labels
                      expand = c(0,0))  #set y-axis at 0
   #scale_x_discrete(expand = c(0,0)) #set x-axis
+}
+```
+
+```{r barByAge_color_function}
+barByAge.color <-function(v.back,v.front,v.nao,data,title){
+  #find means of var for each age group for the machine-like robot
+  means.back <- aggregate(v.back~AgeGroup4,data,mean)
+  #find means of variable for each age group for the human-like robot
+  means.front <- aggregate(v.front~AgeGroup4,data,mean) 
+  #find means of variable for each age group for the human-like robot
+  means.nao <- aggregate(v.nao~AgeGroup4,data,mean) 
+  
+  #find standard error of var for each age group for the machine-like robot
+  se.back <- aggregate(v.back~AgeGroup4,data,std.error) 
+  #find standard error of var for each age group for the human-like robot
+  se.front <- aggregate(v.front~AgeGroup4,data,std.error) 
+  #find standard error of var for each age group for the human-like robot
+  se.nao <- aggregate(v.nao~AgeGroup4,data,std.error) 
+  
+  means.mat<-matrix(c(means.back$v.back,means.front$v.front,means.nao$v.nao),
+                    ncol=4,
+                    byrow=T)-1 #combine means into one matrix
+  se.mat<-matrix(c(se.back$v.back,se.front$v.front,se.nao$v.nao),
+                 ncol=4,
+                 byrow=FALSE) #combine se into one matrix
+  
+  #label the columns by age group
+  colnames(means.mat) <- c('3-5','6-8','9-11','12-18')
+  colnames(se.mat) <- c('3-5','6-8','9-11','12-18')
+
+  #label the rows by robot type
+  rownames(means.mat) <- c('Machine-like','Human-like','Nao')
+  rownames(se.mat) <- c('Machine-like','Human-like','Nao')
+
+  #produce rounded values of the matrix for displaying on the plot
+  means.matR <- round(means.mat,2) 
+
+  plotData = melt(means.matR)
+  seData = melt(se.mat)
+  
+  names(plotData) = c("Robot","Age Group",title)
+  names(seData) = c("Robot","Age Group","SE")
+  #title = plotData$
+
+  plotData = join(plotData,seData)
+  
+  ggplot(data = plotData, aes(x = `Age Group`, y = plotData[title], fill = Robot)) + 
+    geom_bar(width = .65, position=position_dodge(), stat="identity") + 
+    scale_fill_manual(values=wes_palette(n=3, name=wesanderson)) +
+    geom_errorbar(aes(ymin=plotData[title]-SE, ymax=plotData[title]+SE),
+                  width=.2, #Line weights
+                  size = 1, #Width of the error bars
+                  position=position_dodge(.65)) + 
+    labs(x="Age (years)",y=title) + 
+    theme(text = element_text(size=12,family="Helvetica"), #set font
+          axis.text.x = element_text(size=11), #set size of x-axis font
+          axis.title.x = element_text(margin=margin(10,0,0,0), size=14), #set position of x-axis title
+          axis.text.y=element_text(angle=90, hjust=.5, size=11), #set size of y-axis text
+          axis.title.y=element_text(margin=margin(0,20,0,0), size=14), #set position of y-axis title
+          legend.background = element_rect(), #empty box legend
+          legend.key.size = unit(1, "cm"), #set size of boxes for legend
+          legend.position="bottom", #set position of legend at bottom
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(), 
+          axis.line = element_line(colour = "black")) + 
+  scale_y_continuous(limits = c(0,3.15), #set min and max of y-axis
+                     c, #set y continuous to 4 tick marks at 0,1,2,3
+                     labels=c('Not at all', 'A little bit', 'A medium amount', 'A lot'), #set labels
+                     expand = c(0,0))  #set y-axis at 0
+  #scale_x_discrete(expand = c(0,0)) #set x-axis
   
 }
 ```
+
 
 ```{r load_file}
 #library Hmisc
@@ -244,6 +321,8 @@ UV$AgeGroup5 = factor(ifelse(UV$Age<72, "1", ifelse(UV$Age<96, "2", ifelse(UV$Ag
 ##Participants
 `r length(UV$SubID)` participants (`r sum(UV$Sex==1)` females), `r round(min(UV$AgeYears[which(UV$AgeYears>1)]))` to `r round(max(UV$AgeYears))` years old, were recruited.
 
+Data was collected from `r min(UV$DOT)` to `r max(UV$DOT)`.
+
 ```{r exclude}
 UV = UV[which(UV$AgeYears>1),]
 ```
@@ -258,8 +337,6 @@ UV = UV[which(UV$AgeYears>1),]
 
 ##Power
 ```{r power_analysis}
-library(pwr)
-
 #effect size Gray & Wegner
 # mean difference divided by pooled SD
 effect.size.uv = (1.77-1.32)/((.8+.57)/2) #uncanny valley effect
@@ -457,7 +534,6 @@ UV$UV2.diff = UV$UV2-UV$UVindex2.Nao
 ##Identifying multicollinearity
 ```{r multicollinearity}
 x = cor.test(UV$Agency.C,UV$Exp.C)
-x
 ```
 
 r(`r x$parameter`) = `r round(x$estimate,2)`
@@ -666,42 +742,135 @@ pander(lm.beta(lm.out))
 ```
 
 ###Figure 4
-```{r figure_4, fig.height=6,fig.width=6.5}
-lm.out.back = lm(UV2.diff~AgeYears,
-            data=UV[UV$Order==1,])
-lm.out.front = lm(UV2.diff~AgeYears,
-            data=UV[UV$Order==2,])
+```{r figure_4_BW, fig.height=6,fig.width=6.5}
 
-#dimgray
-#lightgray
+UV$Robot.reorder = with(UV, factor(Robot, levels = rev(levels(Robot))))
 
-machine_color = "#262626"
-human_color = "#868686"
-  
-agevalues <- seq(3.1111, 17.6111, length.out = 239)
-p.back <- predict(lm.out.back,list(AgeYears = agevalues))
-p.front <- predict(lm.out.front,list(AgeYears = agevalues))
-{par(pty="s")
-  plot(jitter(UV$AgeYears),
-       jitter(UV$UV2.diff),
-       pch=20,
-       col=ifelse(UV$Order==1,machine_color,human_color),
-       ylab="Uncanniness scores",
-       xlab = "Age (Years)",
-       xaxt="n")
-  axis(1, at = seq(3, 18, by = 3))
-  lines(agevalues, p.back, col = machine_color, lwd = 3)
-  lines(agevalues, p.front, col = human_color, lwd = 3)
-  legend(x = 12.75,
-         y = -2.25, 
-         c('Machine-like','Human-like'),
-         lty=c(1,1),
-         lwd=c(3,3),
-         col=c(machine_color,human_color),
-         cex=.75)}
+set.seed(123)
+ggplot(UV, aes(y=UV2.diff, x=AgeYears)) +
+  geom_jitter(width = 0.1, height = 0.1, aes(color = Robot, shape=Robot))+
+  geom_smooth(method=lm,se=F,fullrange=TRUE,aes(color=Robot)) + 
+  scale_shape_manual(values=c(17,16)) +
+  scale_colour_grey(start=.8,end=.2) +
+  labs(y = "Uncanniness Scores", x = "Age (years)", color = "Robot", shape = "Robot") + 
+  scale_x_continuous(breaks = seq(3, 18, by = 3)) + 
+  scale_y_continuous(breaks = seq(-3,3,by=1)) + 
+  theme(text = element_text(size=12,family="Helvetica"), #set font
+        axis.text.x = element_text(size=11), #set size of x-axis font
+        axis.title.x = element_text(margin=margin(10,0,0,0), size=14), #set position of x-axis title
+        axis.text.y=element_text(angle=90, hjust=.5, size=11), #set size of y-axis text
+        axis.title.y=element_text(margin=margin(0,20,0,0), size=14), #set position of y-axis title
+        #legend.title = element_blank(),
+        legend.key = element_blank(),
+        legend.key.size = unit(1, "cm"), #set size of boxes for legend
+        legend.key.height = unit(.7, "cm"),
+        legend.position = c(.85,.12),
+        legend.background = element_rect(colour="black",linetype="solid"), #empty box legend
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        aspect.ratio=1)# +
+  #guides(color = guide_legend(reverse = TRUE), shape = guide_legend(reverse = TRUE))
+
+
+```
+
+```{r figure_4_color, fig.height=6,fig.width=6.5}
+
+wesanderson = "Darjeeling"
+
+set.seed(123)
+ggplot(UV, aes(y=UV2.diff, x=AgeYears)) +
+  geom_jitter(width = 0.1, height = 0.1, aes(color = Robot, shape=Robot))+
+  geom_smooth(method=lm,se=F,fullrange=TRUE,aes(color=Robot)) + 
+  scale_shape_manual(values=c(17,16)) +
+  scale_colour_manual(values=wes_palette(n=3, name=wesanderson)) +
+  labs(y = "Uncanniness Scores", x = "Age (years)", color = "Robot", shape = "Robot") + 
+  scale_x_continuous(breaks = seq(3, 18, by = 3)) + 
+  scale_y_continuous(breaks = seq(-3,3,by=1)) + 
+  theme(text = element_text(size=12,family="Helvetica"), #set font
+        axis.text.x = element_text(size=11), #set size of x-axis font
+        axis.title.x = element_text(margin=margin(10,0,0,0), size=14), #set position of x-axis title
+        axis.text.y=element_text(angle=90, hjust=.5, size=11), #set size of y-axis text
+        axis.title.y=element_text(margin=margin(0,20,0,0), size=14), #set position of y-axis title
+        #legend.title = element_blank(),
+        legend.key = element_blank(),
+        legend.key.size = unit(1, "cm"), #set size of boxes for legend
+        legend.key.height = unit(.7, "cm"),
+        legend.position = c(.85,.12),
+        legend.background = element_rect(colour="black",linetype="solid"), #empty box legend
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        aspect.ratio=1)# +
+  #guides(color = guide_legend(reverse = TRUE), shape = guide_legend(reverse = TRUE))
 ```
 
 ###Figure 5
-```{r figure_5, fig.width=6.75,fig.height=4.5}
+```{r figure_5_BW, fig.width=6.75,fig.height=4.5}
 barByAge(UV$UVindex2.Back,UV$UVindex2.Front,UV$UVindex2.Nao,UV,"Uncanniness")
 ```
+
+```{r figure_5_color, fig.width=6.75,fig.height=4.5}
+barByAge.color(UV$UVindex2.Back,UV$UVindex2.Front,UV$UVindex2.Nao,UV,"Uncanniness")
+```
+
+```{r figure_5_data}
+#find means of var for each age group for the machine-like robot
+means.back <- aggregate(UV$UVindex2.Back~AgeGroup4,UV,mean)
+#find means of variable for each age group for the human-like robot
+means.front <- aggregate(UV$UVindex2.Front~AgeGroup4,UV,mean) 
+#find means of variable for each age group for the human-like robot
+means.nao <- aggregate(UV$UVindex2.Nao~AgeGroup4,UV,mean) 
+
+#find standard error of var for each age group for the machine-like robot
+se.back <- aggregate(UV$UVindex2.Back~AgeGroup4,UV,std.error) 
+#find standard error of var for each age group for the human-like robot
+se.front <- aggregate(UV$UVindex2.Front~AgeGroup4,UV,std.error) 
+#find standard error of var for each age group for the human-like robot
+se.nao <- aggregate(UV$UVindex2.Nao~AgeGroup4,UV,std.error) 
+  
+means.mat<-matrix(c(means.back$`UV$UVindex2.Back`,
+                      means.front$`UV$UVindex2.Front`,
+                      means.nao$`UV$UVindex2.Nao`),
+                    ncol=4,
+                    byrow=T)-1 #combine means into one matrix
+se.mat<-matrix(c(se.back$`UV$UVindex2.Back`,
+                   se.front$`UV$UVindex2.Front`,
+                   se.nao$`UV$UVindex2.Nao`),
+                 ncol=4,
+                 byrow=FALSE) #combine se into one matrix
+  
+  #label the columns by age group
+colnames(means.mat) <- c('3-5','6-8','9-11','12-18')
+colnames(se.mat) <- c('3-5','6-8','9-11','12-18')
+
+#label the rows by robot type
+rownames(means.mat) <- c('Machine-like','Human-like','Nao')
+rownames(se.mat) <- c('Machine-like','Human-like','Nao')
+
+#produce rounded values of the matrix for displaying on the plot
+means.matR <- round(means.mat,2) 
+
+plotData = melt(means.matR)
+seData = melt(se.mat)
+  
+names(plotData) = c("Robot","Age Group","Uncanniness")
+names(seData) = c("Robot","Age Group","SE")
+#title = plotData$
+
+plotData = join(plotData,seData)
+write.csv(plotData,file = "~/Dropbox/Research/Michigan/Dissertation - Robots/Presentations/Job Talk/Figure 5 Data.csv")
+```
+
+###Additional figures
+```{r figure_add_BW, fig.width=6.75,fig.height=4.5}
+barByAge(UV$Mind.Back,UV$Mind.Front,UV$Mind.Nao,UV,"Uncanniness")
+```
+
+```{r figure_add_color, fig.width=6.75,fig.height=4.5}
+barByAge.color(UV$Mind.Back,UV$Mind.Front,UV$Mind.Nao,UV,"Uncanniness")
+```
+
